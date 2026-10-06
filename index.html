@@ -1,0 +1,1758 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ghostlight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: darkroom workbench. Image stage fills the left, a scrolling control rail sits on the right; stacks on phones. Single dark look so the image reads true. */
+:root{
+  --ground:#101314; --panel:#161a1c; --raise:#1d2225; --line:#2a3135;
+  --ink:#e8e3d8; --dim:#8b938f; --faint:#5b6361;
+  --ember:#e9a77a; --halo:#7fc4d8;
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-ui:"Geist", "Helvetica Neue", system-ui, sans-serif;
+  --f-mono:"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font:13px/1.4 var(--f-ui);margin:0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;min-height:0}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--ground)}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand h1{font:700 22px/1 var(--f-display);letter-spacing:-.01em;margin:0}
+.brand .mark{width:14px;height:14px;border-radius:50%;align-self:center;background:radial-gradient(circle at 35% 35%, #fff2d8, var(--ember) 45%, transparent 70%),radial-gradient(circle at 65% 60%, var(--halo), transparent 65%);box-shadow:0 0 12px rgba(233,167,122,.45)}
+.brand .sub{color:var(--dim);font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--raise);cursor:pointer;white-space:nowrap;font-weight:500}
+.btn:hover{border-color:var(--faint)}
+.btn:focus-visible,.chip:focus-visible,.seg button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.btn.primary{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.btn.rec[data-on="1"]{background:#b8432b;border-color:#b8432b;color:#fff}
+.btn[disabled]{opacity:.5;cursor:default}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 360px;min-height:0}
+.stage{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;background:#0b0d0e}
+.canvasWrap{position:relative;display:grid;place-items:center;min-height:0;padding:18px;overflow:hidden}
+#gl{display:block;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.drop{position:absolute;inset:10px;border:1.5px dashed var(--ember);border-radius:10px;display:grid;place-items:center;font:600 16px var(--f-display);color:var(--ember);background:rgba(16,19,20,.8);pointer-events:none}
+.stagebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 16px;border-top:1px solid var(--line);background:var(--panel)}
+.scrub{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-width:0}
+.scrub input{flex:1;min-width:0}
+.scrub output{font:12px var(--f-mono);color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.status{color:var(--dim);font-size:12px;flex:1 1 200px;min-width:0}
+.status b{color:var(--ink);font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 10px;cursor:pointer;color:var(--dim)}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--ink)}
+.seg button+button{border-left:1px solid var(--line)}
+.panel{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;min-height:0}
+details{border-bottom:1px solid var(--line)}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font:600 14px var(--f-display);letter-spacing:.01em}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--faint);font:400 16px var(--f-mono)}
+details[open] summary::after{content:"–"}
+.sec{display:grid;gap:10px;padding:0 16px 16px}
+.sub-h{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);margin-top:6px}
+.row{display:grid;grid-template-columns:96px minmax(0,1fr) 40px;align-items:center;gap:8px}
+.row label{color:var(--dim);font-size:12px}
+.row output{font:12px var(--f-mono);color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line);border-radius:2px}
+input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--ink);margin-top:-5px;border:0}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:0}
+select{width:100%;height:28px;border-radius:5px;border:1px solid var(--line);background:var(--raise);padding:0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--raise);border-radius:999px;padding:5px 10px;cursor:pointer;font-size:12px;color:var(--dim)}
+.chip:hover{color:var(--ink)}
+.chip[aria-pressed="true"]{border-color:var(--ember);color:var(--ink)}
+.looks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.look{border:1px solid var(--line);border-radius:6px;background:var(--raise);padding:0;cursor:pointer;overflow:hidden;text-align:left}
+.look .sw{display:block;height:34px}
+.look span.n{display:block;padding:5px 7px;font-size:11.5px;color:var(--dim)}
+.look[aria-pressed="true"]{border-color:var(--ember)}
+.lookdel{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(10,12,13,.7);color:var(--ink);cursor:pointer;font-size:13px;line-height:20px;padding:0;opacity:.75}
+.lookdel:hover,.lookdel:focus-visible{opacity:1}
+.look[aria-pressed="true"] span.n{color:var(--ink)}
+.swatches{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.swatch{display:grid;gap:3px;justify-items:center}
+.swatch input{width:100%;height:30px;border:1px solid var(--line);border-radius:4px;padding:0;background:none;cursor:pointer}
+.swatch input::-webkit-color-swatch-wrapper{padding:0}
+.swatch input::-webkit-color-swatch{border:0;border-radius:3px}
+.swatch span{font-size:9.5px;color:var(--faint);letter-spacing:.02em;white-space:nowrap}
+.palettes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.pal{display:grid;grid-template-rows:14px auto;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--raise);cursor:pointer;padding:0;text-align:left}
+.pal .strip{display:flex}
+.pal .strip i{flex:1}
+.pal span{font-size:11px;color:var(--dim);padding:4px 6px}
+.pal[aria-pressed="true"]{border-color:var(--ember)}
+.mood{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px}
+.mood input{height:32px;border-radius:6px;border:1px solid var(--line);background:var(--ground);padding:0 10px;min-width:0}
+.note{font-size:11.5px;color:var(--faint);min-height:1em}
+.toggle{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
+.modal{position:fixed;inset:0;background:rgba(5,6,7,.86);display:grid;place-items:center;padding:16px;z-index:10}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:10px;max-width:min(92vw,900px);max-height:90vh}
+.modal img,.modal video{max-width:100%;max-height:70vh;display:block}
+@media (max-width:900px){
+  .app{height:auto}
+  .work{grid-template-columns:1fr}
+  .canvasWrap{height:62vh}
+  .panel{border-left:0;border-top:1px solid var(--line);overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><h1>Ghostlight</h1><span class="sub">double-exposure darkroom</span></div>
+    <div class="actions">
+      <button class="btn" id="btnOpen" type="button">Open photo or video</button>
+      <input type="file" id="file" accept="image/*,video/*" hidden>
+      <input type="file" id="goboFile" accept="image/*,video/*" hidden>
+      <button class="btn primary" id="btnPng" type="button">Export image</button>
+      <button class="btn rec" id="btnRec" type="button" data-on="0">Export video</button>
+    </div>
+  </header>
+  <main class="work">
+    <section class="stage" id="stage">
+      <div class="canvasWrap" id="wrap"><canvas id="gl" width="960" height="1200"></canvas><div class="drop" id="drop" hidden>Drop a photo or video</div></div>
+      <div class="stagebar">
+        <div class="status" id="status">Sample bust loaded. Open your own photo or video, or drop it on the stage.</div>
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" id="vRes" aria-pressed="true">Result</button>
+          <button type="button" id="vMask" aria-pressed="false">Mask</button>
+          <button type="button" id="vOrig" aria-pressed="false" title="Hold to compare">Hold original</button>
+        </div>
+        <div class="scrub" id="scrubWrap" hidden><button class="btn" id="btnPlay" type="button" hidden>Pause</button><input type="range" id="seek" min="0" max="1" step="0.0005" value="0" aria-label="Video position"><output id="seekT">0:00 / 0:00</output></div>
+        <button class="btn" id="btnSeed" type="button" title="New random arrangement of the overlay">Reshuffle overlay</button>
+      </div>
+    </section>
+    <aside class="panel" id="panel"></aside>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+
+/* ---------------- Palettes ---------------- */
+const PAL_KEYS = ["bg","bg2","shadow","mid","high","light","ember","halo"];
+const PAL_LABELS = ["Paper","Paper 2","Shadow","Mid","High","Light","Ember","Halo"];
+const PALETTES = [
+  {name:"Ember Cream",  c:["#e4e0dc","#d6cfd0","#1c1f26","#7f7ab8","#eadce6","#ffe7b0","#ee5a2a","#ffffff"]},
+  {name:"Amber Room",   c:["#dcd5b5","#c6bf9b","#151312","#5b4636","#e8d9be","#ffd48f","#d2421c","#f4e9c8"]},
+  {name:"Sun Dapple",   c:["#ddd7c5","#cfc8b2","#1c3552","#5e8db4","#f2e7d0","#fff3d8","#e3592f","#59b4e6"]},
+  {name:"Night Halo",   c:["#1f4651","#0a0e10","#f1f5f3","#d9c2b0","#101416","#e9f4f7","#c9845e","#56c3ea"]},
+  {name:"Sage Shadow",  c:["#bac7c6","#a7b6b7","#13222e","#2b4452","#c9d3cf","#ff946a","#e23d27","#dce6e4"]},
+  {name:"Cobalt Bloom", c:["#d3dae5","#c0cadb","#17267f","#3a4fb6","#f3e6f0","#fff6f6","#eaa2b8","#7d8be0"]},
+  {name:"Rose Smoke",   c:["#e7dad6","#d6c1be","#3a1e2a","#9c5a6e","#f4e4e0","#ffe9d9","#e2475b","#f7c9c9"]},
+  {name:"Moss Lantern", c:["#c9cdb8","#b4baa0","#1b2a1e","#4c6b4a","#e6e8d6","#ffe7a3","#d7792b","#b8d6a0"]},
+  {name:"Violet Dusk",  c:["#cfc9da","#bbb3cc","#1e1633","#5d4c93","#efe6f2","#ffe2c4","#f06e52","#b9a8f0"]},
+  {name:"Ink & Gold",   c:["#15181a","#0a0b0c","#0e0f10","#5c4e33","#ebd9ae","#ffe1a0","#e39a3b","#e8c17a"]},
+  {name:"Teal Copper",  c:["#d6ddd8","#c1ccc7","#0f2e33","#2f6d6d","#e6eee9","#ffd9b5","#c8562a","#7fd0c9"]},
+  {name:"Ash & Bone",   c:["#e8e6e1","#d8d6cf","#202020","#7a7672","#f2f0eb","#ffffff","#a3968b","#ffffff"]},
+  {name:"Peach Fog",    c:["#efe3d8","#e0cdbf","#2b2233","#8a6a86","#f6ece4","#fff1e0","#ff8a5b","#f3c3b0"]},
+  {name:"Lagoon",       c:["#d9e6e6","#c2d5d7","#0d2a3a","#1f6f86","#e9f3f2","#f4fff8","#3fd0c0","#9fe8ff"]},
+  {name:"Lilac Shade",  c:["#c9c3d3","#b6afc4","#1d1730","#3b3156","#d6cfe0","#ff8f7a","#d8455a","#e3dcef"]},
+  {name:"Moss Shade",   c:["#c4c9bb","#b1b8a6","#142018","#2c3d2f","#d2d7c8","#ffa45e","#d0602a","#e1e6d6"]},
+  {name:"Rose Shade",   c:["#ddd0cd","#cdbdb9","#2a1720","#4b2a36","#e6dad6","#ff8c86","#d93e52","#efe2df"]},
+  {name:"Night Garden", c:["#2b302d","#121513","#0c0e0d","#2a2c25","#8a8570","#f0a850","#c4622a","#d9a862"]},
+  {name:"Peach Shade",  c:["#e6d9cf","#d7c6ba","#2b2030","#4a3848","#eadfd8","#ff9a6e","#e2553a","#f2e4dc"]},
+  {name:"Oxblood",      c:["#e6ddd3","#d3c5b8","#2a0e12","#7d2a2c","#efe2d6","#ffe3c2","#d6402a","#f0b49a"]},
+];
+
+/* ---------------- Overlay (floral light) presets ---------------- */
+const GOBO_MODES = {dapple:0, leaves:1, blossom:2, sprig:3, ember:4, blinds:5, image:6, branch:7, caustic:8};
+const BRANCH_P = {gobo:"branch", gDens:.6, gScale:1, gSoft:.025, gFocus:.45, gDepth:.6, gRot:0, panX:0, panY:0};
+const FLORA = [
+  {id:"olive",   name:"Olive branch",   kind:"olive",   p:{...BRANCH_P}},
+  {id:"maple",   name:"Maple",          kind:"maple",   p:{...BRANCH_P}},
+  {id:"blossom", name:"Blossom twig",   kind:"blossom", p:{...BRANCH_P}},
+  {id:"willow",  name:"Willow",         kind:"willow",  p:{...BRANCH_P}},
+  {id:"grass",   name:"Wild grass",     kind:"grass",   p:{...BRANCH_P}},
+  {id:"fern",    name:"Fern frond",     kind:"fern",    p:{...BRANCH_P}},
+  {id:"daisy",   name:"Daisy scatter",  p:{gobo:"blossom",gScale:3.6, gWidth:.25, gDens:.5, gPetals:13, gSpread:1, gLayers:2, gSoft:.02, gFocus:.4}},
+  {id:"petals",  name:"Falling petals", p:{gobo:"leaves", gScale:6.5, gWidth:.85, gDens:.35, gSpread:1, gLayers:3, gSoft:.03, gFocus:.4}},
+  {id:"caustic", name:"Water caustics", p:{gobo:"caustic", polarity:0, gScale:3.4, gDens:.7, gSoft:.008, gFocus:.35, emberAmt:.4, light:1.15}},
+  {id:"dapple",  name:"Sun dapple",     p:{gobo:"dapple", gScale:3.0, gDens:.48, gSoft:.04, gFocus:.4}},
+  {id:"ember",   name:"Ember glass",    p:{gobo:"ember",  gScale:1.6, gDens:.5, gSoft:.04, gFocus:.4}},
+  {id:"blinds",  name:"Blinds",         p:{gobo:"blinds", gScale:7, gDens:.45, gSoft:.04, gRot:.25, gFocus:.6}},
+];
+
+/* ---------------- Parameters ---------------- */
+const DEF = {
+  maskMode:"auto", personTh:.5, personSoft:.06, keyTol:.16, keySoft:.12, lumaDarker:1, invertMask:0,
+  feather:.6, edge:.14, grow:.5, density:.9, fade:0, fadeSoft:.12, fadeRough:.35,
+  bleed:.75, water:0, rag:1, washDens:1, bleedSize:6, bleedScale:2.2, flow:.25, tide:.35, mottle:.3,
+  haloSize:5, halo:.22, rim:0, ghost:0, ghostX:-.07, ghostY:.02, smoothing:.7,
+  blur:2.2, detail:.25, sharpen:0, clarity:0, exposure:0, contrast:1.1, keep:.2,
+  gobo:"branch", flora:"olive", polarity:1, gScale:1, gDens:.75, gWidth:.55, gPetals:5, gLeaflets:7, gPairs:0, gBend:.3,
+  gRot:.4, gSpread:1, gLayers:3, gDepth:.6, gSoft:.025, gFocus:.45, wind:.35, flutter:.8, panX:0, panY:0, seed:1, imgContrast:1.2, imgInvert:0,
+  light:.9, lightBleed:.45, emberAmt:.8, pool:.5, poolX:.55, poolY:.62, poolSize:.45, poolSoft:.6, spill:.2,
+  grain:.5, grainSize:1.5, halation:.45, chroma:.18, vignette:.15, lift:.2, dust:.25, dustOp:.8, leak:.12,
+  imgFormat:"png", imgSize:"source", imgLong:3000, imgQuality:.92, vFormat:"mp4", vSize:"1080", vLong:1920, vQuality:"high", vFps:"30", vDurMode:"clip", vSecs:6,
+};
+// Base recipe shared by the shadow looks: pale paper, dark figure, a warm spotlight through leaves that also falls on the wall
+const SAGE={light:.9, polarity:1, wind:.4, pool:.9, poolX:.6, poolY:.64, poolSize:.36, spill:.4, blur:2, detail:.2, halo:.15, density:.92, bleed:.7, mottle:.4, fade:0, ghost:0, lightBleed:.5};
+const LOOKS = [
+  {name:"Sage Shadow", pal:4,  p:{...SAGE, flora:"maple"}},
+  {name:"Oxblood",     pal:19, p:{...SAGE, flora:"maple", pool:.8, poolX:.58, poolY:.62, poolSize:.4, blur:2.2, keep:.3, halation:.6, spill:.35, bleed:.6, grain:.55, mottle:.3}},
+  {name:"Cobalt Bloom",pal:5,  p:{flora:"grass", polarity:0, wind:.4, light:.8, pool:.4, poolX:.5, poolY:.55, poolSize:.5, edge:.2, feather:1, blur:2.4, detail:.12, sharpen:.35, contrast:1.35, keep:0, halo:.3, haloSize:6, bleed:.55, fade:0, ghost:0, spill:.15, lightBleed:.5}},
+  {name:"Amber Room",  pal:1,  p:{flora:"blossom", polarity:1, wind:.3, pool:.85, poolX:.45, poolY:.6, poolSize:.33, blur:1.2, detail:.45, keep:.3, halo:.15, density:.85, chroma:.35, bleed:.25, fade:0, ghost:0, spill:.08, lightBleed:.55}},
+  {name:"Pool Light",  pal:13, p:{flora:"caustic", polarity:0, wind:.35, gScale:6.5, gSoft:.003, gFocus:.3, light:.78, emberAmt:.2, pool:.65, poolX:.5, poolY:.58, poolSize:.6, blur:2.2, detail:.3, halo:.2, bleed:.6, spill:.18, lightBleed:.3, fade:0, ghost:0}},
+  {name:"Ember Cream", pal:0,  p:{flora:"ember", polarity:0, wind:.25, gScale:2.4, pool:.6, poolX:.58, poolY:.5, poolSize:.42, light:1.1, emberAmt:1, detail:.4, keep:.35, contrast:1.2, fade:.4, fadeRough:.7, halo:.25, haloSize:5, blur:2.4, bleed:.6, spill:.05, lightBleed:.6, density:.9, ghost:0}},
+  {name:"Sun Dapple",  pal:2,  p:{flora:"dapple", polarity:0, wind:.3, gScale:6, gDens:.42, gSoft:.012, gFocus:.2, pool:0, light:.8, emberAmt:.8, detail:.3, contrast:1.2, spill:.45, ghost:.35, ghostX:-.07, ghostY:.015, density:.9, bleed:.6, blur:1.8, lightBleed:.5, fade:0}},
+  {name:"Willow Dusk", pal:14, p:{...SAGE, flora:"willow", flutter:1, wind:.45, poolX:.55, poolY:.6, poolSize:.42, blur:2.4}},
+  {name:"Moss Lantern",pal:15, p:{...SAGE, flora:"olive", gDens:1, light:.75, poolX:.55, poolY:.6, poolSize:.34, halation:.6, detail:.25}},
+  {name:"Rose Smoke",  pal:16, p:{...SAGE, flora:"blossom", gDens:1, poolX:.48, poolY:.62, poolSize:.42, water:.5, bleed:.8, blur:2.6, keep:.2}},
+  {name:"Night Garden",pal:17, p:{...SAGE, flora:"olive", gDens:1, poolX:.55, poolY:.6, poolSize:.45, halo:.35, haloSize:6, detail:.3, spill:.55, vignette:.35, grain:.6}},
+  {name:"Blinds Noir", pal:11, p:{...SAGE, flora:"blinds", wind:.15, pool:.8, poolX:.6, poolY:.6, poolSize:.5, contrast:1.35, detail:.35, spill:.6, grain:.7, grainSize:1.8, bleed:.5}},
+  {name:"Peach Fog",   pal:18, p:{...SAGE, flora:"petals", wind:.45, poolX:.5, poolY:.6, poolSize:.45, blur:2.6, halo:.25, haloSize:6}},
+  {name:"Night Halo",  pal:3,  p:{flora:"willow", polarity:1, wind:.3, light:.35, pool:.3, halo:.9, haloSize:5.5, rim:.15, blur:3, detail:.2, edge:.2, vignette:.5, grain:.5, bleed:.6, flow:.6, ghost:0, fade:0, spill:0, lightBleed:.3}},
+];
+
+let P = {...DEF};
+let PAL = PALETTES[2].c.slice();
+let palName = PALETTES[2].name;
+let lookIdx = 0;
+
+/* ---------------- WebGL ---------------- */
+const cv = $("#gl");
+const gl = cv.getContext("webgl2", {preserveDrawingBuffer:true, premultipliedAlpha:false, antialias:false});
+if (!gl) { $("#status").textContent = "This browser has no WebGL2, which Ghostlight needs to render."; throw new Error("no webgl2"); }
+const HALF = !!gl.getExtension("EXT_color_buffer_float");
+gl.getExtension("OES_texture_float_linear");
+const MAXTEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
+const VS = `#version 300 es
+out vec2 vUv; void main(){ vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.-1.,0.,1.); }`;
+
+const COMMON = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+uniform float uSeed;
+float h1(vec2 p){ p=fract(p*vec2(123.34,456.21)+uSeed*.01731); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+vec2 h2(vec2 p){ float a=h1(p); return vec2(a,h1(p+a*17.17+3.1)); }
+float vn(vec2 p){ vec2 i=floor(p),f=fract(p); vec2 u=f*f*(3.-2.*f);
+  return mix(mix(h1(i),h1(i+vec2(1,0)),u.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),u.x),u.y); }
+float fbm(vec2 p){ float s=0.,a=.5; for(int i=0;i<5;i++){ s+=a*vn(p); p=p*2.03+vec2(1.7,9.2); a*=.5; } return s; }
+uint hu(uvec3 v){ v=v*1664525u+1013904223u; v.x+=v.y*v.z; v.y+=v.z*v.x; v.z+=v.x*v.y; v^=v>>16u; v.x+=v.y*v.z; v.y+=v.z*v.x; v.z+=v.x*v.y; return v.x; }
+float hf(uvec3 v){ return float(hu(v)&0xffffffu)/16777216.; }
+mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,s,-s,c); }
+`;
+
+const FS_MASK = COMMON + `
+uniform sampler2D tSrc,tSeg,tPrev; uniform float uMode,uTol,uSoft,uDarker,uInv,uSmooth,uSegA,uPTh,uPSoft; uniform vec3 uKey;
+void main(){
+  vec4 s=texture(tSrc,vUv); float m=1.;
+  if(uMode<.5){ vec4 g=texture(tSeg,vUv); float pr = uSegA>.5 ? g.a : g.r; m=smoothstep(uPTh-uPSoft,uPTh+uPSoft,pr); }
+  else if(uMode<1.5){ m=smoothstep(uTol,uTol+uSoft,distance(s.rgb,uKey)); }
+  else if(uMode<2.5){ float l=dot(s.rgb,vec3(.299,.587,.114)); if(uDarker>.5) l=1.-l; m=smoothstep(uTol*2.,uTol*2.+uSoft,l); }
+  else if(uMode<3.5){ m=s.a; }
+  if(uInv>.5) m=1.-m;
+  float pm=texture(tPrev,vUv).r;
+  // steady small edge jitter, but let real movement through so the mask does not trail behind the subject
+  float keep=uSmooth*(1.-smoothstep(.2+.3*(1.-uSmooth),.75,abs(m-pm)));
+  m=mix(m,pm,keep);
+  o=vec4(m,m,m,1.);
+}`;
+
+const FS_BLUR = `#version 300 es
+precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D t; uniform vec2 uDir;
+void main(){ vec4 c=vec4(0.); float ws=0.;
+  for(int i=-6;i<=6;i++){ float f=float(i); float w=exp(-f*f/18.); c+=texture(t,vUv+uDir*f)*w; ws+=w; }
+  o=c/ws; }`;
+
+const FS_GOBO = COMMON + `
+uniform float uMode,uScale,uRot,uSpread,uDens,uSoft,uDepth,uWidth,uPetals,uLeaflets,uPairs,uBend,uTime,uWind,uAspect,uLayers,uImgAspect,uImgC,uImgInv;
+uniform vec2 uPan,uAnchor; uniform sampler2D tImg,tFlora;
+float leaf(vec2 q,float w,float soft){
+  float x=clamp(q.x,-1.,1.);
+  float prof=w*pow(max(1.-x*x,0.),.75)*(1.-.25*x);
+  float d=max(abs(q.y)-prof, abs(q.x)-1.);
+  return 1.-smoothstep(-soft,soft,d);
+}
+float blossom(vec2 q,float soft){
+  float r=length(q), a=atan(q.y,q.x);
+  float e=mix(3.,.35,uWidth);
+  float R=.28+.72*pow(abs(cos(a*uPetals*.5)),e);
+  float c=1.-smoothstep(-soft,soft,r-R);
+  return c*(1.-.35*(1.-smoothstep(.08,.16,r)));
+}
+float sprig(vec2 q,float soft,float sd){
+  float sx=uBend*q.y*q.y;
+  float c=(q.y>0.&&q.y<1.)?1.-smoothstep(.012,.012+soft,abs(q.x-sx)):0.;
+  for(int k=0;k<16;k++){
+    float fk=float(k); if(fk>=uLeaflets) break;
+    float t=(fk+.7)/(uLeaflets+.4);
+    vec2 base=vec2(uBend*t*t,t);
+    vec2 td=normalize(vec2(2.*uBend*t,1.));
+    float len=mix(.2,.08,t)*(.8+.4*h1(vec2(fk,sd)));
+    for(int sdI=0;sdI<2;sdI++){
+      float side = (uPairs>.5) ? (sdI==0?1.:-1.) : (mod(fk,2.)<1.?1.:-1.);
+      if(uPairs<.5 && sdI==1) break;
+      vec2 ld=rot(side*.8)*td;
+      vec2 d=q-(base+ld*len);
+      vec2 lq=vec2(dot(d,ld),dot(d,vec2(-ld.y,ld.x)))/len;
+      c=max(c,leaf(lq,uWidth,soft/len));
+    }
+  }
+  vec2 d=q-vec2(uBend,1.08); c=max(c,leaf(vec2(d.y,d.x)/.1,uWidth,soft/.1));
+  return c;
+}
+float cvor(vec2 p,float t){ vec2 i=floor(p), f=fract(p); float d1=8., d2=8.;
+  for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){ vec2 b=vec2(x,y); vec2 r=h2(i+b); r=.5+.42*sin(t*1.1+6.2831*r);
+    float d=length(b+r-f); if(d<d1){ d2=d1; d1=d; } else if(d<d2) d2=d; }
+  return d2-d1; }
+float cells(vec2 p){
+  float cov=0.;
+  for(int l=0;l<3;l++){
+    float fl=float(l); if(fl>=uLayers) break;
+    float sc=1.+fl*.6;
+    vec2 pl=p*sc+vec2(fl*13.7,fl*7.3)+vec2(sin(uTime*.7+fl),cos(uTime*.5+fl*2.))*uWind*.12*(1.+fl*.5);
+    float soft=uSoft*(1.+fl*uDepth*3.)*sc;
+    float alpha=1.-fl*.18*uDepth;
+    vec2 ci=floor(pl);
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+      vec2 cell=ci+vec2(i,j);
+      if(h1(cell*.71+fl*31.)>uDens) continue;
+      vec2 ra=h2(cell*1.7+fl*5.), rb=h2(cell*3.1+fl*11.);
+      vec2 ctr=cell+.5+(ra-.5)*.9;
+      float ang=uRot+(rb.x-.5)*6.2831*uSpread+sin(uTime*.9+rb.y*6.)*uWind*.15;
+      float size=.45+.5*rb.y;
+      vec2 q=rot(ang)*(pl-ctr)/size;
+      float s;
+      if(uMode<1.5) s=leaf(q,uWidth,soft/size);
+      else if(uMode<2.5) s=blossom(q,soft/size);
+      else s=sprig(q+vec2(0.,.5),soft/size,rb.x*7.);
+      cov=max(cov,s*alpha);
+    }
+  }
+  return cov;
+}
+void main(){
+  vec2 p=(vUv-.5)*vec2(uAspect,1.)*uScale+uPan*uScale;
+  float t=uTime*uWind;
+  float g=0.;
+  if(uMode<.5){
+    vec2 w=vec2(fbm(p*.8+t*.08),fbm(p*.8+5.2-t*.06));
+    float n=fbm(p*1.3+w*1.2+uSeed*.37);
+    float th=mix(.72,.32,uDens);
+    g=smoothstep(th-uSoft*4.,th+uSoft*4.,n);
+  } else if(uMode<3.5){
+    g=cells(p);
+  } else if(uMode<4.5){
+    vec2 w=vec2(fbm(p*.7+t*.1),fbm(p*.7+5.2));
+    float n=fbm(p*1.2+w*1.6+uSeed*.37);
+    float r=1.-abs(n-.5)*2.;
+    float th=mix(.97,.72,uDens);
+    g=smoothstep(th-uSoft*3.,th+uSoft*3.,r);
+    g=max(g, .35*smoothstep(th-.2,th,r));
+  } else if(uMode<5.5){
+    vec2 q=rot(uRot)*p;
+    float f=fract(q.y+t*.05);
+    g=1.-smoothstep(uDens-uSoft*3.,uDens+uSoft*3.,abs(f-.5)*2.);
+  } else if(uMode>7.5){
+    vec2 q=p*1.2;
+    q+=vec2(sin(q.y*.9+t*.35)+sin(q.y*.37-t*.21), cos(q.x*.8-t*.3)+sin(q.x*.41+t*.17))*.38;
+    q+=vec2(fbm(q*.45+t*.05),fbm(q*.45+4.1-t*.04))*1.2;
+    float w=.045+uSoft*1.6;
+    float e1=cvor(q,t), e2=cvor(q*1.6+3.1,t*1.3);
+    float c1=1.-smoothstep(0.,w,e1), c2=1.-smoothstep(0.,w*1.3,e2);
+    float glow=(1.-smoothstep(0.,w*5.,e1))*.18+(1.-smoothstep(0.,w*5.,e2))*.12;
+    g=clamp((c1*1.3+c2*.7+c1*c2*1.8)*mix(.45,1.4,fbm(q*.35+t*.04))+glow,0.,1.);
+    g=mix(g*g,g,uDens);
+  } else if(uMode>6.5){
+    vec2 q=rot(uRot)*((vUv-.5)*vec2(uAspect,1.))/max(uScale,.05)+.5-uPan*.5;
+    float dA=length(q-uAnchor);
+    float tt=uTime;
+    vec2 sway=vec2(0.), flut=vec2(0.);
+    float lodN=log2(1.+uSoft*90.);
+    vec2 qn=q+sway+flut;
+    float nr=textureLod(tFlora,qn,lodN).r*step(0.,qn.x)*step(qn.x,1.)*step(0.,qn.y)*step(qn.y,1.);
+    vec2 qf=(q-.5)*.94+.5+vec2(.018,.01)+sway*.55+flut*.5;
+    float fr=textureLod(tFlora,qf,lodN+1.2+uDepth*2.2).g*step(0.,qf.x)*step(qf.x,1.)*step(0.,qf.y)*step(qf.y,1.);
+    g=max(nr, fr*(1.-.3*uDepth));
+  } else {
+    vec2 q=rot(uRot)*((vUv-.5)*vec2(uAspect,1.))/max(uScale*.25,.05);
+    q.x/=uImgAspect; q+=.5+uPan;
+    vec3 c=texture(tImg,q).rgb;
+    float l=dot(c,vec3(.299,.587,.114));
+    l=clamp((l-.5)*uImgC+.5,0.,1.);
+    g=uImgInv>.5?1.-l:l;
+  }
+  o=vec4(g,g,g,1.);
+}`;
+
+const FS_NOISE = COMMON + `
+uniform float uAspect,uBleedScale;
+void main(){ vec2 nq=vUv*vec2(uAspect,1.)*uBleedScale;
+  o=vec4(fbm(nq+uSeed*.13), fbm(nq*2.1+3.3), fbm(nq*2.1+8.1), fbm(vUv*vec2(uAspect,1.)*6.+uSeed*2.)); }`;
+const FS_COMP = COMMON + `
+uniform sampler2D tSrc,tSrcB,tMask,tGlow,tBleed,tGobo,tGoboW,tNoise;
+uniform vec2 uRes; uniform float uAspect,uTime,uFrame,uView,uGrainPx,uPxScale;
+uniform vec3 cBg,cBg2,cSh,cMid,cHi,cLight,cEmber,cHalo;
+uniform float uThresh,uEdge,uDensity,uDetail,uKeep,uContrast,uExposure,uSharpen,uClarity;
+uniform float uLightBleed,uBreath,uLight,uEmberAmt,uPool,uPoolSoft,uPolarity,uSpill; uniform vec2 uPoolPos,uPoolSize;
+uniform float uHalo,uRim,uGhost; uniform vec2 uGhostOff;
+uniform float uFade,uFadeSoft,uFadeRough;
+uniform float uBleed,uBleedScale,uFlow,uTide,uMottle,uWater,uRag,uWashDens;
+uniform float uDustOp,uGrain,uHalation,uChroma,uVignette,uLift,uDust,uLeak;
+vec3 screen(vec3 a,vec3 b){ return 1.-(1.-a)*(1.-b); }
+float luma(vec3 c){ return dot(c,vec3(.299,.587,.114)); }
+vec3 gmap(float l){ return l<.5 ? mix(cSh,cMid,smoothstep(0.,.5,l)) : mix(cMid,cHi,smoothstep(.5,1.,l)); }
+float maskAt(vec2 uv, out float glow, out float bleedN, out float tide){
+  vec4 nz=texture(tNoise,uv);
+  bleedN=smoothstep(.44,.7,nz.r);
+  vec2 warp=(nz.gb-.5)*uFlow*.06*(.3+bleedN);
+  vec2 wv=uv+warp;
+  float ms=texture(tMask,wv).r;
+  float mb=texture(tBleed,wv).r;
+  float sharp=smoothstep(uThresh-uEdge,uThresh+uEdge,ms);
+  float soft=smoothstep(.04,.96,mb);
+  float k=bleedN*uBleed;
+  // soft dissolve: a true variable-width blur of the edge. The transition width grows with k,
+  // so the edge goes smoothly from crisp to fully melted instead of a hard line plus a halo.
+  float w=k*.5;
+  float melt=smoothstep(uThresh-w-.02,uThresh+w+.02,mb);
+  float mSoft=mix(sharp,melt,smoothstep(0.,.12,k));
+  // watercolor leak: pigment creeps outward with ragged, crisp-ish fingers, a pale wash and a darker drying rim
+  vec2 aq=uv*vec2(uAspect,1.)*uRag;
+  float rag=vn(aq*7.+uSeed)*.55+vn(aq*19.+uSeed*1.7)*.3+vn(aq*47.+3.1)*.15;
+  vec2 fw=((vec2(vn(aq*11.+1.3),vn(aq*11.+7.7))-.5)*.06+(vec2(vn(aq*37.+2.),vn(aq*37.+5.))-.5)*.02)*k;
+  float mbw=texture(tBleed,wv+fw).r;
+  float reach=clamp(k*smoothstep(.25,.85,rag)*1.25,0.,1.);
+  float th=mix(.5,.02,reach);
+  float lw=.02+.07*(1.-rag);
+  float leak=smoothstep(th-lw,th+lw,mbw);
+  float wash=leak*(1.-sharp);
+  float dens=mix(.3,.78,smoothstep(.2,.9,rag))*uWashDens;
+  float gran=1.+(vn(aq*90.+uSeed)-.5)*.5;
+  float mWater=clamp(sharp+wash*dens*gran,0.,1.);
+  float rim=wash*(1.-smoothstep(th,th+.28,mbw))*.7;
+  float m=mix(mSoft,mWater,uWater);
+  tide=rim*(.4+.6*rag)*uWater;
+  glow=texture(tGlow,wv).r;
+  return m;
+}
+
+// one dust layer: x = dark coverage, y = light coverage (scratched-off emulsion)
+vec2 dustLayer(vec2 fc,float cellPx,uint seed,float dens,float soft){
+  vec2 p=fc/cellPx, ci=floor(p); vec2 acc=vec2(0.);
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+    vec2 cell=ci+vec2(i,j); uvec2 uc=uvec2(ivec2(cell)+4096);
+    float r0=hf(uvec3(uc,seed)); if(r0>dens) continue;
+    float r1=hf(uvec3(uc,seed+101u)), r2=hf(uvec3(uc,seed+202u)), r3=hf(uvec3(uc,seed+303u)), r4=hf(uvec3(uc,seed+404u));
+    vec2 c=cell+vec2(r1,r2);
+    vec2 d=p-c;
+    float a=0.;
+    float blur=soft>.5 ? .03+.06*r4 : .007+.014*r3;
+    if(r3<.62){
+      // speck: irregular clump of dust
+      float ang=atan(d.y,d.x);
+      float rad=(soft>.5 ? .04+.1*r4*r4 : .008+.045*pow(r4,4.));
+      rad*=1.+.3*sin(ang*3.+r1*6.28)+.15*sin(ang*7.+r2*6.28);
+      a=1.-smoothstep(rad-blur,rad+blur,length(d));
+    } else {
+      // fiber: a thin curling hair
+      vec2 q=rot(r4*6.2832)*d;
+      float L=.08+.32*r1*r1;
+      float x=clamp(q.x,-L,L);
+      float yc=(r2-.5)*4.*x*x+.025*sin(x*(14.+18.*r4)+r1*6.28)*L*3.;
+      float w=(soft>.5? .01 : .0025+.003*r2);
+      float dist=length(vec2(q.x-x,q.y-yc));
+      a=(1.-smoothstep(w,w+blur,dist))*(1.-smoothstep(L*.85,L,abs(q.x))*.6);
+    }
+    float op=.45+.55*hf(uvec3(uc,seed+505u));
+    if(soft<.5 && r0<dens*.18) acc.y=max(acc.y,a*op); else acc.x=max(acc.x,a*op*(soft>.5?.75:1.));
+  }
+  return acc;
+}
+vec3 comp(vec2 uv, out float a){
+  float glow,bleedN,tide;
+  float m=maskAt(uv,glow,bleedN,tide);
+  float f=1.;
+  if(uFade>0.){
+    float n=(texture(tNoise,uv).g-.5)*2.*uFadeRough;
+    f=smoothstep(uFade-uFadeSoft,uFade+uFadeSoft,uv.y+n*.3);
+  }
+  vec3 sh=texture(tSrc,uv).rgb, sb=texture(tSrcB,uv).rgb;
+  vec2 px=1./uRes;
+  vec3 nb=(texture(tSrc,uv+vec2(px.x,0.)).rgb+texture(tSrc,uv-vec2(px.x,0.)).rgb+texture(tSrc,uv+vec2(0.,px.y)).rgb+texture(tSrc,uv-vec2(0.,px.y)).rgb)*.25;
+  vec3 nb2=(texture(tSrc,uv+vec2(px.x,px.y)*2.5).rgb+texture(tSrc,uv-vec2(px.x,px.y)*2.5).rgb+texture(tSrc,uv+vec2(px.x,-px.y)*2.5).rgb+texture(tSrc,uv-vec2(px.x,-px.y)*2.5).rgb)*.25;
+  vec3 shp=sh+(sh-nb)*uSharpen*1.6+(sh-nb2)*uSharpen*.8;
+  vec3 s=mix(sb,shp,uDetail);
+  float lraw=luma(s)+(luma(s)-luma(sb))*uClarity*1.5;
+  float l=clamp((lraw-.5)*uContrast+.5+uExposure,0.,1.);
+  vec3 inside=gmap(l);
+  inside=mix(inside, inside*(.55+.9*s/max(luma(s),.05)), uKeep);
+  float g=texture(tGobo,uv).r;
+  float gl=mix(g,1.-g,uPolarity);
+  vec2 pd=(uv-uPoolPos)*vec2(uAspect,1.)/max(uPoolSize,.01);
+  float pool=1.-smoothstep(1.-uPoolSoft,1.+.001,length(pd));
+  float breath=1.-uBreath*.22*smoothstep(.3,.75,vn(vec2(uTime*.12,uSeed)+uv*vec2(uAspect,1.)*.6));
+  float L=gl*mix(1.,pool,uPool)*uLight*breath;
+  float core=smoothstep(.45,1.,L);
+  float rimL=smoothstep(.02,.4,L)*(1.-core);
+  inside=screen(inside, cLight*core + cEmber*rimL*uEmberAmt);
+  inside=mix(inside, inside*cEmber*1.4, rimL*uEmberAmt*.25);
+  float gw=texture(tGoboW,uv).r; float Lw=mix(gw,1.-gw,uPolarity)*mix(1.,pool,uPool)*uLight;
+  inside+=cEmber*Lw*uHalation*.5;
+  inside=screen(inside, cLight*Lw*uLightBleed*.45*breath);
+  vec2 bq=uv*vec2(uAspect,1.);
+  vec3 bg=mix(cBg2,cBg,smoothstep(-.2,1.1,uv.y*.7+uv.x*.3+(texture(tNoise,uv*.5).r-.5)*.3));
+  float Lb=gl*mix(1.,pool,uPool*.6)*uSpill;
+  bg=screen(bg, cLight*Lb*.7);
+  bg=mix(bg, bg*(cMid*.9+.25), clamp((1.-gl)*uPolarity*uSpill*mix(1.,pool,uPool*.6),0.,1.)*.55);
+  float mott=1.+(texture(tNoise,uv).a-.5)*uMottle*1.2;
+  a=clamp(m*f*uDensity*mott,0.,1.);
+  vec3 col=mix(bg,inside,a);
+  col=mix(col, col*mix(vec3(1.),cSh*1.6,.6), clamp(tide*uTide*2.5,0.,1.)*f);
+  vec3 bl=mix(cEmber,cLight,.55)*Lw*breath*uLightBleed;
+  col=screen(col, bl*glow*(1.-a*.6)*.9);
+  col=mix(col, screen(col,bg*.6), smoothstep(.0,.5,glow)*(1.-smoothstep(.5,1.,glow))*uLightBleed*.5*a);
+  float outer=max(glow-m,0.)*f;
+  col=screen(col,cHalo*outer*uHalo*1.6);
+  float inner=m*clamp((1.-glow)*2.2,0.,1.)*f;
+  col=screen(col,cHalo*inner*uRim);
+  float gh=texture(tGlow,uv-uGhostOff).r*(1.-.75*m);
+  col=mix(col,mix(cHalo,cMid,.35),clamp(gh*uGhost,0.,1.));
+  return col;
+}
+void main(){
+  vec2 uv=vUv;
+  if(uView>1.5){ o=vec4(texture(tSrc,uv).rgb,1.); return; }
+  float a;
+  if(uView>.5){ float gw,bn,td; float m=maskAt(uv,gw,bn,td); o=vec4(vec3(m),1.); return; }
+  vec2 d=(uv-.5)*uChroma*.012;
+  float a1,a2;
+  vec3 c=comp(uv,a);
+  vec3 col=vec3(comp(uv+d,a1).r, c.g, comp(uv-d,a2).b);
+  col=clamp(col,0.,1.);
+  float lm0=luma(col);
+  col=mix(col, mix(cSh,cBg,.45), uLift*.4*pow(max(1.-lm0,0.),1.5));
+  vec2 vq=(uv-.5)*vec2(uAspect,1.);
+  col*=1.-uVignette*smoothstep(.25,1.1,length(vq)*1.3);
+  float lk=exp(-pow((uv.x+.05)*3.,2.))*(.6+.6*texture(tNoise,uv*.4+vec2(0.,uTime*.01)).r);
+  col=screen(col,cEmber*lk*uLeak);
+  vec2 fc=gl_FragCoord.xy;
+  uint fr=uint(mod(uFrame,4096.));
+  // projector dust: a static, out-of-focus lens layer plus sharp gate dust that jumps every few frames
+  if(uDust>0.){
+    vec2 lens=dustLayer(fc,150.*uPxScale,77u,uDust*.16,1.);
+    vec2 gate=dustLayer(fc,70.*uPxScale,fr/3u+1u,uDust*.32,0.);
+    // overlay blend: dust is a grey layer (0.5 = no change), dark particles below, light flecks above
+    float dl=clamp(.5-gate.x*.5-lens.x*.28+gate.y*.4,0.,1.);
+    vec3 ov=mix(2.*col*dl, 1.-2.*(1.-col)*(1.-dl), step(.5,col));
+    col=mix(col,ov,uDustOp);
+  }
+  // film grain: two clump sizes, zero-mean, strongest in the midtones; integer hash so it never degrades over long sessions
+  float gp=max(uGrainPx,1.);
+  uvec2 g1=uvec2(fc/gp), g2=uvec2(fc/(gp*2.2));
+  float n1=(hf(uvec3(g1,fr))+hf(uvec3(g1,fr+4099u))+hf(uvec3(g1,fr+8209u)))/3.-.5;
+  float n2=(hf(uvec3(g2,fr+17u))+hf(uvec3(g2,fr+4111u)))/2.-.5;
+  float n=n1*1.25+n2*.75;
+  vec3 cn=vec3(hf(uvec3(g1,fr+31u)),hf(uvec3(g1,fr+37u)),hf(uvec3(g1,fr+41u)))-.5;
+  float lm=luma(col);
+  float w=.35+2.6*lm*(1.-lm);
+  vec3 gr=(vec3(n)+cn*.3)*uGrain*.34*w;
+  col+=gr;
+  col*=1.+(texture(tNoise,uv*.7).a-.5)*uGrain*.06;
+  o=vec4(clamp(col,0.,1.),1.);
+}`;
+
+function compile(fs){
+  const p=gl.createProgram();
+  for (const [type,src] of [[gl.VERTEX_SHADER,VS],[gl.FRAGMENT_SHADER,fs]]){
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); throw new Error("shader: "+gl.getShaderInfoLog(s)); }
+    gl.attachShader(p,s);
+  }
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return {p, loc:{}};
+}
+const PR = {noise:compile(FS_NOISE), mask:compile(FS_MASK), blur:compile(FS_BLUR), gobo:compile(FS_GOBO), comp:compile(FS_COMP)};
+const vao = gl.createVertexArray();
+
+function tex(filter=gl.LINEAR, wrap=gl.CLAMP_TO_EDGE){
+  const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filter);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));
+  return t;
+}
+const T = {src:tex(gl.LINEAR_MIPMAP_LINEAR), seg:tex(), img:tex(gl.LINEAR, gl.REPEAT), flora:tex(gl.LINEAR_MIPMAP_LINEAR), atlas:tex(gl.LINEAR_MIPMAP_LINEAR)};
+function upload(t, el, mip){
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,el);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  if(mip) gl.generateMipmap(gl.TEXTURE_2D);
+}
+function fbo(w,h){
+  const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
+  if(HALF) gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,w,h,0,gl.RGBA,gl.HALF_FLOAT,null);
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  for(const [k,v] of [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D,k,v);
+  const f=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER,f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,t,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {t,f,w,h};
+}
+let F=null, Fkey="";
+function ensureF(w,h){
+  const key=w+"x"+h; if(key===Fkey) return;
+  if(F) for(const k in F){ gl.deleteTexture(F[k].t); gl.deleteFramebuffer(F[k].f); }
+  const hw=Math.max(2,Math.ceil(w/2)), hh=Math.max(2,Math.ceil(h/2)), qw=Math.max(2,Math.ceil(w/4)), qh=Math.max(2,Math.ceil(h/4));
+  F={mA:fbo(hw,hh), mB:fbo(hw,hh), mask:fbo(hw,hh), hT:fbo(hw,hh), gobo:fbo(hw,hh),
+     glow:fbo(qw,qh), bleed:fbo(qw,qh), srcB:fbo(qw,qh), goboW:fbo(qw,qh), qT:fbo(qw,qh), noise:fbo(qw,qh)};
+  Fkey=key; maskFlip=0; lastMask=null;
+}
+let maskFlip=0, lastMask=null;
+
+function run(pr, target, tx, un){
+  gl.useProgram(pr.p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target?target.f:null);
+  if(target) gl.viewport(0,0,target.w,target.h); else gl.viewport(0,0,cv.width,cv.height);
+  let unit=0;
+  for(const name in tx){
+    gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tx[name]);
+    const l = name in pr.loc ? pr.loc[name] : (pr.loc[name]=gl.getUniformLocation(pr.p,name));
+    gl.uniform1i(l,unit); unit++;
+  }
+  for(const name in un){
+    const l = name in pr.loc ? pr.loc[name] : (pr.loc[name]=gl.getUniformLocation(pr.p,name));
+    if(l===null) continue;
+    const v=un[name];
+    if(typeof v==="number") gl.uniform1f(l,v);
+    else if(v.length===2) gl.uniform2f(l,v[0],v[1]);
+    else gl.uniform3f(l,v[0],v[1],v[2]);
+  }
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+}
+function blur(srcT, dst, tmp, rPx, iters=1){
+  const st=rPx/6;
+  let s=srcT;
+  for(let i=0;i<iters;i++){
+    run(PR.blur,tmp,{t:s},{uDir:[st/tmp.w,0]});
+    run(PR.blur,dst,{t:tmp.t},{uDir:[0,st/dst.h]});
+    s=dst.t;
+  }
+}
+const hex3 = h => { const n=parseInt(h.slice(1),16); return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]; };
+
+/* ---------------- Source ---------------- */
+const S = {kind:"sample", el:null, w:1200, h:1500, seg:null, key:[.85,.84,.8], segA:0};
+let time=0, frameNo=0, dirty=true, view=0, recording=false;
+
+function drawSample(){
+  const w=1200,h=1500;
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const x=c.getContext("2d");
+  x.fillStyle="#d9d4c8"; x.fillRect(0,0,w,h);
+  const m=document.createElement("canvas"); m.width=w; m.height=h;
+  const mx=m.getContext("2d");
+  const body = ctx => {
+    ctx.beginPath();
+    ctx.ellipse(615,560,235,300,-.12,0,Math.PI*2);
+    ctx.fill(); ctx.beginPath();
+    ctx.moveTo(470,700); ctx.lineTo(740,700); ctx.lineTo(740,800); ctx.lineTo(470,780);
+    ctx.moveTo(470,780); ctx.bezierCurveTo(480,900,470,960,430,1010);
+    ctx.bezierCurveTo(300,1060,140,1110,60,1240); ctx.lineTo(20,1500); ctx.lineTo(1180,1500); ctx.lineTo(1150,1250);
+    ctx.bezierCurveTo(1080,1110,900,1060,790,1010); ctx.bezierCurveTo(745,960,735,900,740,800); ctx.closePath();
+  };
+  mx.fillStyle="#fff"; body(mx); mx.fill();
+  // skin
+  x.save(); x.beginPath(); x.ellipse(615,560,235,300,-.12,0,Math.PI*2); x.moveTo(470,700); x.lineTo(740,700); x.lineTo(740,800); x.bezierCurveTo(735,900,745,960,790,1010); x.bezierCurveTo(900,1060,1080,1110,1150,1250); x.lineTo(1180,1500); x.lineTo(20,1500); x.lineTo(60,1240); x.bezierCurveTo(140,1110,300,1060,430,1010); x.bezierCurveTo(470,960,480,900,470,780); x.closePath(); x.clip();
+  let g=x.createLinearGradient(300,300,950,1200); g.addColorStop(0,"#e8c3a6"); g.addColorStop(.6,"#b5876b"); g.addColorStop(1,"#5c4335");
+  x.fillStyle=g; x.fillRect(0,0,w,h);
+  // garment
+  x.fillStyle="#2c2a2e"; x.beginPath(); x.moveTo(0,1180); x.bezierCurveTo(260,1090,420,1120,600,1260); x.bezierCurveTo(780,1120,950,1090,1200,1180); x.lineTo(1200,1500); x.lineTo(0,1500); x.fill();
+  // hair
+  x.fillStyle="#1b1614"; x.beginPath(); x.ellipse(625,440,262,240,-.12,Math.PI*1.02,Math.PI*2.02); x.fill();
+  x.beginPath(); x.ellipse(400,560,70,190,.1,0,Math.PI*2); x.fill();
+  // face shading
+  const sh=(cx,cy,rx,ry,col,a=1)=>{ x.save(); x.globalAlpha=a; const rg=x.createRadialGradient(cx,cy,0,cx,cy,Math.max(rx,ry)); rg.addColorStop(0,col); rg.addColorStop(1,"rgba(0,0,0,0)"); x.fillStyle=rg; x.translate(cx,cy); x.scale(rx/Math.max(rx,ry),ry/Math.max(rx,ry)); x.translate(-cx,-cy); x.beginPath(); x.arc(cx,cy,Math.max(rx,ry),0,7); x.fill(); x.restore(); };
+  sh(560,560,60,30,"rgba(60,35,28,.8)"); sh(720,545,58,28,"rgba(60,35,28,.8)");
+  sh(650,650,30,70,"rgba(255,235,215,.6)"); sh(675,700,40,25,"rgba(80,45,35,.5)");
+  sh(660,790,75,30,"rgba(170,45,45,.95)"); sh(540,680,90,80,"rgba(220,120,100,.25)");
+  sh(470,860,140,200,"rgba(40,25,20,.55)");
+  x.restore();
+  return {img:c, mask:m};
+}
+
+function cornerKey(el,w,h){
+  const c=document.createElement("canvas"); c.width=64; c.height=Math.max(8,Math.round(64*h/w));
+  const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(el,0,0,c.width,c.height);
+  const d=x.getImageData(0,0,c.width,c.height).data; let r=0,g=0,b=0,n=0,trans=0;
+  const pick=(px,py)=>{ const i=(py*c.width+px)*4; r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; };
+  for(let yy=0;yy<4;yy++) for(let xx=0;xx<6;xx++){ pick(xx,yy); pick(c.width-1-xx,yy); }
+  for(let i=3;i<d.length;i+=4) if(d[i]<250) trans++;
+  return {key:[r/n/255,g/n/255,b/n/255], hasAlpha: trans>d.length/400};
+}
+
+function fitCanvas(){
+  const long=1600; const k=Math.min(1, long/Math.max(S.w,S.h));
+  cv.width=Math.max(2,Math.round(S.w*k)); cv.height=Math.max(2,Math.round(S.h*k));
+  fitCss(); dirty=true;
+}
+function fitCss(){
+  const w=$("#wrap"); const cs=getComputedStyle(w);
+  const aw=w.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  const ah=w.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  const k=Math.min(aw/S.w, ah/S.h);
+  cv.style.width=Math.max(10,Math.floor(S.w*k))+"px"; cv.style.height=Math.max(10,Math.floor(S.h*k))+"px";
+}
+new ResizeObserver(()=>fitCss()).observe(document.getElementById("wrap"));
+
+function setSample(){
+  const s=drawSample();
+  S.kind="sample"; S.el=s.img; S.w=1200; S.h=1500; S.sampleMask=s.mask;
+  upload(T.src,s.img,true); upload(T.seg,s.mask,false); S.segA=0;
+  S.key=[.85,.83,.78];
+  fitCanvas(); updatePlayBtn();
+}
+
+async function loadSource(file){
+  if(!file) return;
+  if(S.kind==="video" && S.el){ S.el.pause(); URL.revokeObjectURL(S.el.src); }
+  const url=URL.createObjectURL(file);
+  if(file.type.startsWith("video")){
+    const v=document.createElement("video");
+    v.muted=true; v.loop=true; v.playsInline=true; v.src=url;
+    v.addEventListener("seeked",()=>{ if(S.el===v) onVideoSeeked(); });
+    await new Promise((res,rej)=>{ v.onloadeddata=res; v.onerror=()=>rej(new Error("video")); });
+    try{ await v.play(); }catch(e){}
+    S.kind="video"; S.el=v; S.w=v.videoWidth; S.h=v.videoHeight;
+    upload(T.src,v,true);
+    const ck=cornerKey(v,S.w,S.h); S.key=ck.key;
+    setStatus(`<b>${esc(file.name)}</b> · video ${S.w}×${S.h}`);
+  } else {
+    const im=new Image(); im.src=url;
+    try{ await im.decode(); }catch(e){ setStatus("That file could not be opened as an image. Try a JPG, PNG or WebP."); return; }
+    let el=im, w=im.naturalWidth, h=im.naturalHeight;
+    if(Math.max(w,h)>MAXTEX){ const k=MAXTEX/Math.max(w,h); const c=document.createElement("canvas"); c.width=Math.round(w*k); c.height=Math.round(h*k); c.getContext("2d").drawImage(im,0,0,c.width,c.height); el=c; w=c.width; h=c.height; }
+    S.kind="image"; S.el=el; S.w=w; S.h=h;
+    upload(T.src,el,true);
+    const ck=cornerKey(el,w,h); S.key=ck.key;
+    if(ck.hasAlpha){ P.maskMode="alpha"; syncControls(); }
+    setStatus(`<b>${esc(file.name)}</b> · ${w}×${h}`);
+  }
+  S.segReady=false;
+  fitCanvas(); updatePlayBtn();
+  ensureMask();
+}
+
+/* ---------------- Person detection (MediaPipe, bundled) ---------------- */
+let mp=null, mpState="idle", segBusy=false;
+const segCanvas=document.createElement("canvas");
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("load "+src)); document.head.appendChild(s); }); }
+async function ensureSeg(){
+  if(S.kind==="sample"){ dirty=true; return; }
+  if(mpState==="failed"){ if(S.retrySeg){ S.retrySeg=false; mpState="idle"; mp=null; } else { fallbackKey(); return; } }
+  if(mpState==="idle"){
+    mpState="loading"; setStatus("Loading person detection…");
+    try{
+      await loadScript("mp/models.js");
+      const M=window.__GL_MODELS||{};
+      const of=window.fetch.bind(window);
+      window.fetch=(u,...r)=>{ const k=String(u).split("/").pop(); if(M[k]){ const b=Uint8Array.from(atob(M[k]),c=>c.charCodeAt(0)); return Promise.resolve(new Response(b)); } return of(u,...r); };
+      await loadScript("mp/selfie_segmentation.js");
+      // MediaPipe injects its WASM loader with crossorigin="anonymous", which some viewers refuse silently.
+      // Load the right loader ourselves first so its factory is always defined.
+      let simd=false; try{ simd=WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,9,1,7,0,65,0,253,15,26,11])); }catch(_){}
+      if(typeof window.createMediapipeSolutionsWasm!=="function") await loadScript(simd?"mp/selfie_segmentation_solution_simd_wasm_bin.js":"mp/selfie_segmentation_solution_wasm_bin.js");
+      mp=new window.SelfieSegmentation({locateFile:f=>"mp/"+f});
+      mp.setOptions({modelSelection:0, selfieMode:false});
+      mp.onResults(onSeg);
+      if(typeof WebAssembly!=="object") throw new Error("WebAssembly is blocked");
+      await Promise.race([mp.initialize(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("took longer than 60 s to start")),60000))]);
+      mpState="ready"; if(S.kind==="video") setStatus(statusBase()+" · person mask");
+    }catch(e){ console.error("[Ghostlight] person detection failed:",e); mpState="failed"; S.mpError=String(e&&e.message||e).slice(0,140); fallbackKey(); return; }
+  }
+  if(mpState==="ready" && S.kind==="image") runSeg();
+}
+function fallbackKey(){
+  if(P.maskMode==="auto"){ P.maskMode="key"; syncControls(); }
+  setStatus(`Person detection could not start here${S.mpError?` (${esc(S.mpError)})`:""}, so the silhouette uses the backdrop key. Pick <b>Person</b> under Silhouette to retry.`);
+  dirty=true;
+}
+const frameCv=document.createElement("canvas");
+async function runSeg(){
+  if(!mp || segBusy) return;
+  segBusy=true;
+  let img=S.el;
+  if(S.kind==="video"){
+    // Freeze the exact frame being analysed, so picture and mask always come from the same moment
+    const k=Math.min(1,1600/Math.max(S.w,S.h));
+    const w=Math.round(S.w*k), h=Math.round(S.h*k);
+    if(frameCv.width!==w||frameCv.height!==h){ frameCv.width=w; frameCv.height=h; }
+    frameCv.getContext("2d").drawImage(S.el,0,0,w,h);
+    img=frameCv; S.pendingFrame=true;
+  }
+  try{ await mp.send({image:img}); }catch(e){ console.warn(e); }
+  segBusy=false;
+  if(S.segAgain){ S.segAgain=false; runSeg(); }
+}
+function onSeg(r){
+  const m=r.segmentationMask; if(!m) return;
+  segCanvas.width=m.width; segCanvas.height=m.height;
+  const x=segCanvas.getContext("2d",{willReadFrequently:true});
+  x.clearRect(0,0,m.width,m.height); x.drawImage(m,0,0);
+  if(!S.segChecked){
+    const d=x.getImageData(0,0,m.width,m.height).data; let rs=0, as=0;
+    for(let i=0;i<d.length;i+=16){ rs+=d[i]; as+=255-d[i+3]; }
+    S.mpSegA = rs<1 && as>0 ? 1 : 0; S.segChecked=true;
+  }
+  if(P.maskMode!=="auto") return;
+  S.segA=S.mpSegA||0;
+  upload(T.seg,segCanvas,false);
+  if(S.kind==="video" && S.pendingFrame){ upload(T.src,frameCv,true); S.pendingFrame=false; }
+  S.newMask=true; S.segDone=true;
+  if(!S.segReady && S.kind!=="video") setStatus(statusBase());
+  S.segReady=true; dirty=true;
+}
+
+/* ---------------- Mask source dispatch ---------------- */
+let analyzing=false;
+function ensureMask(){
+  if(P.maskMode==="auto") ensureSeg();
+  else dirty=true;
+}
+
+function statusBase(){ return S.kind==="sample" ? "Sample bust" : `${S.kind==="video"?"Video":"Photo"} ${S.w}×${S.h}`; }
+
+/* ---------------- Render ---------------- */
+function render(W,H){
+  ensureF(Math.max(2,Math.round(W)),Math.max(2,Math.round(H)));
+  const aspect=W/H;
+  const modeIdx={auto:0,key:1,luma:2,alpha:3,full:4}[P.maskMode];
+  const playing = (S.kind==="video" && !S.el.paused) || !!S.offline;
+  if(!playing || S.newMask || !lastMask){
+    const prev = maskFlip ? F.mA : F.mB, cur = maskFlip ? F.mB : F.mA;
+    const smooth = (playing && lastMask) ? P.smoothing : 0;
+    run(PR.mask,cur,{tSrc:T.src,tSeg:T.seg,tPrev:prev.t},{uMode:modeIdx,uTol:P.keyTol,uSoft:P.keySoft,uDarker:P.lumaDarker,uInv:P.invertMask,uSmooth:smooth,uSegA:S.segA,uPTh:P.personTh,uPSoft:P.personSoft,uKey:S.key,uSeed:P.seed});
+    maskFlip^=1; lastMask=cur; S.newMask=false;
+  }
+  const cur=lastMask;
+  const hH=F.mask.h, qH=F.glow.h;
+  run(PR.noise,F.noise,{},{uAspect:aspect,uBleedScale:P.bleedScale,uSeed:P.seed});
+  blur(cur.t,F.mask,F.hT,Math.max(.6,P.feather/100*hH),2);
+  blur(F.mask.t,F.glow,F.qT,Math.max(.5,P.haloSize/100*qH),2);
+  blur(F.mask.t,F.bleed,F.qT,Math.max(.5,P.bleedSize/100*qH),2);
+  blur(T.src,F.srcB,F.qT,Math.max(.3,P.blur/100*qH),2);
+  run(PR.gobo,F.gobo,{tImg:T.img,tFlora:T.flora},{uMode:GOBO_MODES[P.gobo],uScale:P.gScale,uRot:P.gRot,uSpread:P.gSpread,uDens:P.gDens,uSoft:P.gSoft,uDepth:P.gDepth,uWidth:P.gWidth,uPetals:P.gPetals,uLeaflets:P.gLeaflets,uPairs:P.gPairs,uBend:P.gBend,uTime:time,uWind:P.wind,uAspect:aspect,uLayers:P.gLayers,uImgAspect:S.goboAspect||1,uImgC:P.imgContrast,uImgInv:P.imgInvert,uPan:[P.panX,P.panY],uSeed:P.seed,uAnchor:floraAnchor});
+  blur(F.gobo.t,F.gobo,F.hT,P.gFocus/100*hH,1);
+  blur(F.gobo.t,F.goboW,F.qT,4/100*qH,2);
+  const c=PAL.map(hex3);
+  run(PR.comp,null,{tSrc:T.src,tSrcB:F.srcB.t,tMask:F.mask.t,tGlow:F.glow.t,tBleed:F.bleed.t,tGobo:F.gobo.t,tGoboW:F.goboW.t,tNoise:F.noise.t},{
+    uRes:[W,H],uAspect:aspect,uTime:time,uFrame:frameNo,uView:view,uGrainPx:P.grainSize*Math.max(1,H/900), uPxScale:Math.max(.5,H/1000),uSeed:P.seed,
+    cBg:c[0],cBg2:c[1],cSh:c[2],cMid:c[3],cHi:c[4],cLight:c[5],cEmber:c[6],cHalo:c[7],
+    uThresh:1-P.grow, uEdge:Math.max(.004,P.edge*.5), uDensity:P.density, uDetail:P.detail, uSharpen:P.sharpen, uClarity:P.clarity, uKeep:P.keep, uContrast:P.contrast, uExposure:P.exposure,
+    uLight:P.light, uLightBleed:P.lightBleed, uBreath:Math.min(1,P.wind*1.5), uEmberAmt:P.emberAmt, uPool:P.pool, uPoolSoft:P.poolSoft, uPolarity:P.polarity, uSpill:P.spill, uPoolPos:[P.poolX,P.poolY], uPoolSize:[P.poolSize,P.poolSize],
+    uHalo:P.halo, uRim:P.rim, uGhost:P.ghost, uGhostOff:[P.ghostX,P.ghostY],
+    uFade:P.fade, uFadeSoft:P.fadeSoft, uFadeRough:P.fadeRough,
+    uBleed:P.bleed, uWater:P.water, uRag:P.rag, uWashDens:P.washDens, uBleedScale:P.bleedScale, uFlow:P.flow, uTide:P.tide, uMottle:P.mottle,
+    uGrain:P.grain, uHalation:P.halation, uChroma:P.chroma, uVignette:P.vignette, uLift:P.lift, uDust:P.dust, uDustOp:P.dustOp, uLeak:P.leak
+  });
+}
+
+let last=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  if(exporting) return;
+  const vidPlaying = S.kind==="video" && S.el && !S.el.paused && S.el.readyState>=2;
+  const goboVid = S.goboVideo && !S.goboVideo.paused;
+  const anim = vidPlaying || P.wind>0 || recording || goboVid;
+  if(anim){
+    time += Math.min(.05,(t-last)/1000||0);
+    if(vidPlaying){
+      if(P.maskMode==="auto" && mpState==="ready"){ if(!segBusy) runSeg(); }
+      else { upload(T.src,S.el,true); S.newMask=true; }
+    }
+    if(goboVid) upload(T.img,S.goboVideo,false);
+    frameNo++;
+    dirty=true;
+  }
+  last=t;
+  if(S.kind==="video" && !scrubbing) syncScrub();
+  if(P.gobo==="branch" && flora && (anim || floraDirty)){ paintFlora(time); floraDirty=false; }
+  if(dirty){ dirty=false; render(cv.width,cv.height); }
+}
+
+
+/* ---------------- Branch shadows: a skeleton of limbs and leaves, posed by wind every frame (GPU) ---------------- */
+const FN=1536, FTEX=1024;
+let flora=null, floraAnchor=[0,1], floraDirty=false;
+
+function hseed(i){ const v=Math.sin(i*127.1+P.seed*3.7)*43758.5453; return v-Math.floor(v); }
+function vn1(x){ const i=Math.floor(x), f=x-i, u=f*f*(3-2*f); return hseed(i)*(1-u)+hseed(i+1)*u; }
+// Gust field: bands of stronger wind travelling left to right across the frame
+function gust(x,y,t){ const n=vn1(x*.0016+y*.0005-t*.45)*.65+vn1(x*.0042-t*.95+11.3)*.35; return Math.pow(n,1.6)*1.7; }
+
+/* Leaf atlas: 8x8 cells of 256x128, each one leaf shape filling its cell, base at the left edge */
+const atlasCv=document.createElement("canvas"); atlasCv.width=2048; atlasCv.height=1024;
+const ATLAS_KIND={olive:["lance",.05,"lance",.05], maple:["maple",0,"maple",0], blossom:["flower",0,"lance",.07], willow:["lance",.03,"lance",.03], grass:["lance",.18,"lance",.18], fern:["lance",0,"lance",0]};
+function buildAtlas(kind,R){
+  const x=atlasCv.getContext("2d"); x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,2048,1024); x.fillStyle="#fff";
+  const spec=ATLAS_KIND[kind]||ATLAS_KIND.olive;
+  for(let v=0;v<64;v++){
+    const cx=(v%8)*256+4, cy=Math.floor(v/8)*128+4, cw=248, ch=120;
+    const [type,pf]= v<32 ? [spec[0],spec[1]] : [spec[2],spec[3]];
+    x.save(); x.beginPath(); x.rect(cx,cy,cw,ch); x.clip();
+    if(type==="lance"){
+      const pet=pf*100, len=100, wid=15, L=pet+len, W=wid*2.3;
+      x.setTransform(cw/L,0,0,ch/W,cx,cy+ch/2);
+      const k=.25+R()*.2, a=.85+R()*.3, tip=(R()-.5)*.16*wid;
+      if(pet>0) x.fillRect(0,-1.4,pet+2,2.8);
+      x.beginPath(); x.moveTo(pet,0); x.quadraticCurveTo(pet+len*k,-wid*a,pet+len,tip); x.quadraticCurveTo(pet+len*k,wid*(2-a),pet,0); x.fill();
+    } else if(type==="maple"){
+      const L=1.45, W=1.08; x.setTransform(cw/L,0,0,ch/W,cx,cy+ch/2);
+      x.fillRect(0,-.012,.47,.024);
+      const c0=.45+.5, ph=(R()-.5)*.3; x.beginPath();
+      for(let i=0;i<=90;i++){ const th=i/90*Math.PI*2, lob=Math.pow(Math.abs(Math.cos(2.5*(th+ph))),1.4), teeth=.06*Math.max(0,Math.sin(th*23)), back=Math.cos(th)<-.6?.55:1;
+        const r=.5*(.42+.58*lob+teeth)*back; const X=c0+Math.cos(th)*r, Y=Math.sin(th)*r; i?x.lineTo(X,Y):x.moveTo(X,Y); }
+      x.fill();
+    } else {
+      const r=10, L=25, W=28; x.setTransform(cw/L,0,0,ch/W,cx,cy+ch/2);
+      const ro=R()*6.283, c0=11; x.fillRect(0,-1,c0,2);
+      for(let i=0;i<5;i++){ const a=ro+i/5*6.283; x.beginPath(); x.ellipse(c0+Math.cos(a)*r*.75,Math.sin(a)*r*.75,r*.62,r*.5,a,0,6.2832); x.fill(); }
+      x.beginPath(); x.arc(c0,0,r*.45,0,6.2832); x.fill();
+    }
+    x.restore();
+  }
+  gl.bindTexture(gl.TEXTURE_2D,T.atlas);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlasCv);
+  gl.generateMipmap(gl.TEXTURE_2D);
+}
+
+function makeFlora(kind, seed, dens){
+  const G=1/(.6+dens*.8), N=FN;
+  const out={layers:[], anchor:[0,0]};
+  buildAtlas(kind, rng(seed*31+hashStr(kind)));
+  for(let layer=0;layer<2;layer++){
+    const R=rng(seed*(layer?104729:7919)+hashStr(kind)+layer*3);
+    const rr=(a,b)=>a+(b-a)*R();
+    const L={limbs:[],leaves:[]}; out.layers.push(L);
+    const s=layer?1.08:1;
+    const vA=()=>Math.floor(R()*32), vB=()=>32+Math.floor(R()*32);
+    const lance=(len,wid,pet,b)=>({v:b?vB():vA(), L:pet+len, W:wid*2.3});
+    const addLeaf=(limb,pt,rel,sp,flex=1)=>L.leaves.push({limb,pt,rel,v:sp.v,L:sp.L,W:sp.W,flex,ph:R()*6.283,f:rr(2.2,5.2)});
+    const limb=(parent,ppt,x0,y0,ang,len,w,depth,o)=>{
+      const steps=Math.max(4,Math.round(len/(o.segLen||22))), seg=len/steps;
+      const rel=new Float32Array(steps), wd=new Float32Array(steps+1), abs=new Float32Array(steps+1);
+      let a = parent<0 ? ang : L.limbs[parent].abs[ppt]+ang;
+      for(let i=0;i<=steps;i++){ wd[i]=Math.max(o.minW,w*(1-i/steps*o.taper)); abs[i]=a;
+        if(i<steps){ const d=(R()-.5)*o.wiggle+o.gravity*Math.cos(a)+(o.curve||0)*seg; rel[i]=d; a+=d; } }
+      const id=L.limbs.length;
+      L.limbs.push({parent,ppt,x0,y0,a0:parent<0?ang:0,relA:parent<0?0:ang,seg,rel,wd,abs,steps,
+        flex:(o.flex||1.5)/(1+w*.06),ph:R()*6.283,f1:rr(.5,.9),f2:rr(1.3,2.1),
+        X:new Float32Array(steps+1),Y:new Float32Array(steps+1),A:new Float32Array(steps+1)});
+      if(depth>0) for(let k=0;k<o.kids;k++){ const t=rr(.2,.85), pi=Math.floor(t*steps), side=R()<.5?-1:1;
+        limb(id,pi,0,0,side*rr(o.spread[0],o.spread[1]),len*rr(.42,.68)*(1-t*.25),wd[pi]*.78,depth-1,o); }
+      if(o.leaf && depth<=o.leafDepth){
+        let side=R()<.5?1:-1;
+        for(let d=o.leafStart*len; d<len; d+=o.leafGap*rr(.6,1.4)){
+          side=-side; addLeaf(id,Math.min(steps,Math.round(d/seg)),side*rr(o.la[0],o.la[1]),o.leaf(),o.leafFlex||1); }
+        addLeaf(id,steps,rr(-.15,.15),o.leaf(),o.leafFlex||1);
+      }
+      return id;
+    };
+    if(kind==="olive"){
+      const o={minW:1.5,taper:.85,wiggle:.09,gravity:.004,kids:3,spread:[.35,.8],leafDepth:1,leafStart:.25,leafGap:24*G,la:[.45,.85],flex:1.6,
+        leaf:()=>lance(rr(60,95)*s,rr(8,12)*s,4)};
+      const y0=rr(.08,.3)*N; limb(-1,0,-40,y0,rr(.15,.45),N*rr(.95,1.2),26*s,3,o); if(!layer) out.anchor=[0,y0];
+      for(let i=0;i<Math.round(dens*3);i++) limb(-1,0,-40,rr(0,.7)*N,rr(-.1,.6),N*rr(.6,1),rr(14,22)*s,3,o);
+      limb(-1,0,rr(.55,.95)*N,-40,rr(1.75,2.3),N*rr(.55,.75),16*s,2,o);
+    } else if(kind==="maple"){
+      const o={minW:2,taper:.8,wiggle:.12,gravity:.006,kids:3,spread:[.4,.9],leafDepth:1,leafStart:.35,leafGap:80*G,la:[.6,1.1],flex:1.4,leafFlex:.8,
+        leaf:()=>{ const l=rr(120,180)*s; return {v:Math.floor(R()*64), L:l*1.45, W:l*1.08}; }};
+      const y0=rr(.02,.25)*N; limb(-1,0,N+40,y0,rr(2.55,2.95),N*rr(1,1.2),30*s,3,o); if(!layer) out.anchor=[N,y0];
+      for(let i=0;i<Math.round(dens*2);i++) limb(-1,0,N+40,rr(0,.6)*N,rr(2.6,3.3),N*rr(.7,1),rr(16,24)*s,3,o);
+      limb(-1,0,-40,rr(.65,.9)*N,rr(-.5,-.2),N*rr(.45,.6),14*s,2,o);
+    } else if(kind==="blossom"){
+      const o={minW:2,taper:.7,wiggle:.32,gravity:.002,kids:3,spread:[.4,1],leafDepth:2,leafStart:.15,leafGap:36*G,la:[.3,1.2],flex:1.2,leafFlex:.6,
+        leaf:()=>{ if(R()<.72){ const r=rr(13,22)*s; return {v:vA(), L:r*2.5, W:r*2.8}; } return lance(rr(35,55)*s,rr(8,12)*s,3,true); }};
+      const y0=rr(.05,.3)*N; limb(-1,0,-40,y0,rr(.2,.5),N*rr(.9,1.1),18*s,3,o); if(!layer) out.anchor=[0,y0];
+      for(let i=0;i<Math.round(dens*2);i++) limb(-1,0,rr(.3,1)*N,-40,rr(1.7,2.6),N*rr(.6,.9),rr(10,16)*s,3,o);
+    } else if(kind==="willow"){
+      const o={minW:1.2,taper:.6,wiggle:.05,gravity:.045,kids:1,spread:[.1,.3],leafDepth:1,leafStart:.1,leafGap:15*G,la:[.25,.5],flex:3,leafFlex:1.3,
+        leaf:()=>lance(rr(70,115)*s,rr(7,11)*s,2)};
+      const n=Math.round(6+dens*14);
+      for(let i=0;i<n;i++) limb(-1,0,rr(-.05,1.05)*N,-30,Math.PI/2+rr(-.9,.9),N*rr(.55,1),rr(5,9)*s,1,o);
+      if(!layer) out.anchor=[N*.5,0];
+    } else if(kind==="grass"){
+      const n=Math.round(12+dens*30);
+      for(let i=0;i<n;i++){ const len=N*rr(.35,.9);
+        limb(-1,0,rr(-.1,1.1)*N,N+20,-Math.PI/2+rr(-.45,.45),len,rr(10,19)*s,0,{segLen:len/30,minW:.4,taper:1,wiggle:.02,gravity:0,curve:rr(-.0007,.0007),kids:0,spread:[0,0],flex:3.2}); }
+      const m=Math.round(3+dens*9);
+      const o={minW:1.6,taper:.4,wiggle:.03,gravity:-.002,kids:0,spread:[0,0],leafDepth:0,leafStart:.45,leafGap:30,la:[.35,.6],flex:3,leafFlex:.7,
+        leaf:()=>lance(rr(30,46)*s,rr(7,10)*s,7)};
+      for(let i=0;i<m;i++) limb(-1,0,rr(0,1)*N,N+20,-Math.PI/2+rr(-.35,.35),N*rr(.6,.95),3*s,0,o);
+      if(!layer) out.anchor=[N*.5,N];
+    } else if(kind==="fern"){
+      const n=Math.round(2+dens*4);
+      for(let f=0;f<n;f++){ const len=N*rr(.65,1);
+        const id=limb(-1,0,rr(-.05,1.05)*N,N+30,-Math.PI/2+rr(-.7,.7),len,7*s,0,{segLen:len/60,minW:1.5,taper:.8,wiggle:.015,gravity:0,curve:rr(-.0004,.0004),kids:0,spread:[0,0],flex:2.2});
+        const st=L.limbs[id].steps;
+        for(let k=6;k<st;k+=2){ const t=k/st, pl=(1-t)*rr(85,110)*s+12; for(const sd of [-1,1]) addLeaf(id,k,sd*rr(1.05,1.3),lance(pl,pl*.17,0),.5); }
+      }
+      if(!layer) out.anchor=[N*.5,N];
+    }
+    let nv=0; for(const lb of L.limbs) nv+=lb.steps*12;
+    L.vbuf=new Float32Array(nv); L.ibuf=new Float32Array(L.leaves.length*8);
+  }
+  return out;
+}
+
+function poseLayer(L,t,W){
+  for(const lb of L.limbs){
+    let x,y,a;
+    if(lb.parent<0){ x=lb.x0; y=lb.y0; a=lb.a0; }
+    else { const p=L.limbs[lb.parent]; x=p.X[lb.ppt]; y=p.Y[lb.ppt]; a=p.A[lb.ppt]+lb.relA; }
+    const g=gust(x,y,t);
+    const b=W*lb.flex*(.22*g+.07*Math.sin(t*lb.f1+lb.ph)+.035*Math.sin(t*lb.f2+lb.ph*1.7));
+    const st=lb.steps, k2=2*b/(st*st);
+    for(let i=0;i<=st;i++){ lb.X[i]=x; lb.Y[i]=y; lb.A[i]=a; if(i<st){ a+=lb.rel[i]+k2*i; x+=Math.cos(a)*lb.seg; y+=Math.sin(a)*lb.seg; } }
+  }
+}
+
+const FL_VS_LIMB=`#version 300 es
+layout(location=0) in vec2 aP; uniform float uK,uO,uTex;
+void main(){ vec2 q=(aP*uK+uO)/uTex; gl_Position=vec4(q.x*2.-1.,1.-q.y*2.,0.,1.); }`;
+const FL_FS_LIMB=`#version 300 es
+precision mediump float; uniform vec3 uCol; out vec4 o; void main(){ o=vec4(uCol,1.); }`;
+const FL_VS_LEAF=`#version 300 es
+layout(location=0) in vec2 aQ; layout(location=1) in vec4 aA; layout(location=2) in vec4 aB;
+uniform float uK,uO,uTex; out vec2 vUv;
+void main(){ vec2 l=vec2(aQ.x*aB.x, aQ.y*aB.y*aA.w); float c=cos(aA.z), s=sin(aA.z);
+  vec2 p=aA.xy+vec2(c*l.x-s*l.y, s*l.x+c*l.y); vec2 q=(p*uK+uO)/uTex;
+  gl_Position=vec4(q.x*2.-1.,1.-q.y*2.,0.,1.);
+  vec2 cell=vec2(mod(aB.z,8.), floor(aB.z/8.)); vUv=(cell+vec2(aQ.x*.97+.015, (aQ.y+.5)*.94+.03))/8.; }`;
+const FL_FS_LEAF=`#version 300 es
+precision mediump float; uniform sampler2D tAtlas; uniform vec3 uCol; in vec2 vUv; out vec4 o;
+void main(){ o=vec4(uCol*texture(tAtlas,vUv).a,1.); }`;
+function prog(vs,fs){
+  const p=gl.createProgram();
+  for(const [t,src] of [[gl.VERTEX_SHADER,vs],[gl.FRAGMENT_SHADER,fs]]){ const s=gl.createShader(t); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); gl.attachShader(p,s); }
+  gl.linkProgram(p); if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const loc={}; return {p, u:n=> n in loc ? loc[n] : (loc[n]=gl.getUniformLocation(p,n))};
+}
+const FLP={limb:prog(FL_VS_LIMB,FL_FS_LIMB), leaf:prog(FL_VS_LEAF,FL_FS_LEAF)};
+const limbVAO=gl.createVertexArray(), limbBuf=gl.createBuffer();
+gl.bindVertexArray(limbVAO); gl.bindBuffer(gl.ARRAY_BUFFER,limbBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+const leafVAO=gl.createVertexArray(), quadBuf=gl.createBuffer(), instBuf=gl.createBuffer();
+gl.bindVertexArray(leafVAO);
+gl.bindBuffer(gl.ARRAY_BUFFER,quadBuf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,-.5,1,-.5,0,.5,1,.5]),gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+gl.bindBuffer(gl.ARRAY_BUFFER,instBuf);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,4,gl.FLOAT,false,32,0); gl.vertexAttribDivisor(1,1);
+gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2,4,gl.FLOAT,false,32,16); gl.vertexAttribDivisor(2,1);
+gl.bindVertexArray(null);
+const floraFB=gl.createFramebuffer();
+gl.bindTexture(gl.TEXTURE_2D,T.flora); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,FTEX,FTEX,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+gl.bindFramebuffer(gl.FRAMEBUFFER,floraFB); gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,T.flora,0);
+gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+
+function paintFlora(t){
+  if(!flora) return;
+  const W=P.wind, Fl=P.flutter, k=FTEX/FN;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,floraFB); gl.viewport(0,0,FTEX,FTEX);
+  gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);
+  flora.layers.forEach((L,li)=>{
+    const tt=t+li*1.7; poseLayer(L,tt,W);
+    const K=k*(li?1.08:1), O=k*(li?-FN*.04:0), col=li?[0,1,0]:[1,0,0];
+    const vb=L.vbuf; let n=0;
+    for(const lb of L.limbs){
+      for(let i=0;i<lb.steps;i++){
+        const h0=lb.wd[i]*.5, h1=lb.wd[i+1]*.5;
+        const s0=Math.sin(lb.A[i]), c0=Math.cos(lb.A[i]), s1=Math.sin(lb.A[i+1]), c1=Math.cos(lb.A[i+1]);
+        const ax=lb.X[i]-s0*h0, ay=lb.Y[i]+c0*h0, bx=lb.X[i]+s0*h0, by=lb.Y[i]-c0*h0;
+        const cx=lb.X[i+1]-s1*h1, cy=lb.Y[i+1]+c1*h1, dx=lb.X[i+1]+s1*h1, dy=lb.Y[i+1]-c1*h1;
+        vb[n++]=ax;vb[n++]=ay; vb[n++]=bx;vb[n++]=by; vb[n++]=cx;vb[n++]=cy;
+        vb[n++]=bx;vb[n++]=by; vb[n++]=dx;vb[n++]=dy; vb[n++]=cx;vb[n++]=cy;
+      }
+    }
+    gl.useProgram(FLP.limb.p);
+    gl.uniform1f(FLP.limb.u("uK"),K); gl.uniform1f(FLP.limb.u("uO"),O); gl.uniform1f(FLP.limb.u("uTex"),FTEX); gl.uniform3fv(FLP.limb.u("uCol"),col);
+    gl.bindVertexArray(limbVAO); gl.bindBuffer(gl.ARRAY_BUFFER,limbBuf); gl.bufferData(gl.ARRAY_BUFFER,vb,gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES,0,n/2);
+    const ib=L.ibuf; let m=0;
+    for(const lf of L.leaves){
+      const lb=L.limbs[lf.limb], px=lb.X[lf.pt], py=lb.Y[lf.pt];
+      const g=gust(px,py,tt), amp=W*Fl*lf.flex;
+      ib[m++]=px; ib[m++]=py;
+      ib[m++]=lb.A[lf.pt]+lf.rel+amp*(.9*g*Math.sin(tt*lf.f+lf.ph)+.25*Math.sin(tt*lf.f*2.3+lf.ph*1.7));
+      ib[m++]=Math.max(.15,1-amp*1.1*g*(.5+.5*Math.sin(tt*lf.f*.8+lf.ph*2.1)));
+      ib[m++]=lf.L; ib[m++]=lf.W; ib[m++]=lf.v; ib[m++]=0;
+    }
+    gl.useProgram(FLP.leaf.p);
+    gl.uniform1f(FLP.leaf.u("uK"),K); gl.uniform1f(FLP.leaf.u("uO"),O); gl.uniform1f(FLP.leaf.u("uTex"),FTEX); gl.uniform3fv(FLP.leaf.u("uCol"),col);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,T.atlas); gl.uniform1i(FLP.leaf.u("tAtlas"),0);
+    gl.bindVertexArray(leafVAO); gl.bindBuffer(gl.ARRAY_BUFFER,instBuf); gl.bufferData(gl.ARRAY_BUFFER,ib,gl.DYNAMIC_DRAW);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,L.leaves.length);
+  });
+  gl.disable(gl.BLEND); gl.bindVertexArray(null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  gl.bindTexture(gl.TEXTURE_2D,T.flora); gl.generateMipmap(gl.TEXTURE_2D);
+}
+function buildFloraTex(){
+  flora=makeFlora(P.floraKind||"olive", P.seed, P.gDens);
+  floraAnchor=[flora.anchor[0]/FN, 1-flora.anchor[1]/FN];
+  paintFlora(time);
+  dirty=true;
+}
+
+/* ---------------- Mood palettes ---------------- */
+function oklab2lin(L,a,b){
+  const l_=L+.3963377774*a+.2158037573*b, m_=L-.1055613458*a-.0638541728*b, s_=L-.0894841775*a-1.291485548*b;
+  const l=l_**3,m=m_**3,s=s_**3;
+  return [4.0767416621*l-3.3077115913*m+.2309699292*s, -1.2684380046*l+2.6097574011*m-.3413193965*s, -.0041960863*l-.7034186147*m+1.707614701*s];
+}
+function oklch(L,C,h){
+  h=((h%360)+360)%360; let lin;
+  for(let i=0;i<24;i++){ const a=C*Math.cos(h*Math.PI/180), b=C*Math.sin(h*Math.PI/180); lin=oklab2lin(L,a,b); if(lin.every(v=>v>=-1e-4&&v<=1.0001)) break; C*=.85; }
+  return "#"+lin.map(v=>{ v=Math.min(1,Math.max(0,v)); v=v<=.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-.055; return Math.round(v*255).toString(16).padStart(2,"0"); }).join("");
+}
+const MOODS={warm:{h:50},fire:{h:35,c:1.2},ember:{h:35},passion:{h:20,c:1.2},love:{h:10},rose:{h:5},pink:{h:355},romance:{h:0},romantic:{h:0},
+ sun:{h:75},sunny:{h:75},summer:{h:70},gold:{h:80},golden:{h:80},honey:{h:75},autumn:{h:55},fall:{h:50},harvest:{h:60},
+ ocean:{h:230},sea:{h:220},water:{h:215},rain:{h:230,c:.6},cold:{h:240,c:.7},winter:{h:245,c:.5},ice:{h:220,c:.6},
+ blue:{h:255},cobalt:{h:265,c:1.3},night:{h:255,dark:1},midnight:{h:265,dark:1},noir:{h:250,dark:1,c:.4},dark:{dark:1},moon:{h:240,dark:1,c:.5},moonlight:{h:235,dark:1,c:.5},
+ forest:{h:145},moss:{h:120},green:{h:140},spring:{h:130},garden:{h:130},jungle:{h:150,c:1.2},
+ dream:{h:300,c:.6},dreamy:{h:300,c:.6},lavender:{h:300},violet:{h:295},purple:{h:300},dusk:{h:310},twilight:{h:290},
+ melancholy:{h:240,c:.45},sad:{h:235,c:.4},lonely:{h:230,c:.4},calm:{h:200,c:.5},serene:{h:190,c:.5},quiet:{h:200,c:.4},
+ nostalgia:{h:70,c:.45},nostalgic:{h:70,c:.45},vintage:{h:65,c:.5},sepia:{h:60,c:.35},memory:{h:60,c:.4},
+ desert:{h:55},earth:{h:50,c:.6},smoke:{c:.25},ghost:{c:.2},ethereal:{h:220,c:.4},mystic:{h:285,dark:1},mystery:{h:270,dark:1},
+ neon:{h:330,c:1.5,dark:1},electric:{h:200,c:1.4},tropical:{h:160,c:1.3},citrus:{h:95,c:1.3},peach:{h:45},coral:{h:30},red:{h:25,c:1.2},orange:{h:45},teal:{h:195},copper:{h:45}};
+let shuffleN=0;
+function rng(seed){ let s=seed>>>0||1; return ()=>{ s^=s<<13; s^=s>>>17; s^=s<<5; return ((s>>>0)%100000)/100000; }; }
+function hashStr(t){ let h=2166136261; for(const ch of t) h=Math.imul(h^ch.charCodeAt(0),16777619); return h>>>0; }
+function localPalette(text, salt){
+  const words=(text||"").toLowerCase().match(/[a-z]+/g)||[];
+  const r=rng(hashStr(text||"x")+salt*7919);
+  let sx=0,sy=0,n=0,c=1,dark=0,cn=0;
+  for(const w of words){ const m=MOODS[w]; if(!m) continue; if(m.h!==undefined){ sx+=Math.cos(m.h*Math.PI/180); sy+=Math.sin(m.h*Math.PI/180); n++; } if(m.c){ c*=m.c; cn++; } if(m.dark) dark=1; }
+  let base = n ? Math.atan2(sy,sx)*180/Math.PI : r()*360;
+  base += (r()-.5)*24;
+  if(!n && !words.length) dark = r()<.2 ? 1 : 0;
+  const cool = ((base%360)+360)%360 > 150 && ((base%360)+360)%360 < 320;
+  const shH = cool ? base : base+180+(r()-.5)*70;
+  const liH = cool ? base+180+(r()-.5)*60 : base;
+  const bgH = r()<.55 ? liH : shH;
+  let pal;
+  if(!dark){
+    pal=[oklch(.88+r()*.04,.012+.02*c*r(),bgH), oklch(.81+r()*.04,.02+.02*c*r(),bgH+20), oklch(.2+r()*.06,.05+.05*c,shH), oklch(.48+r()*.1,.08+.06*c,shH+15),
+         oklch(.92,.025,liH), oklch(.94,.07*Math.min(c,1.3),liH+8), oklch(.62+r()*.06,.17*c+.02,liH-14), oklch(.8,.09*c,shH)];
+  } else {
+    pal=[oklch(.3+r()*.06,.045*c,shH), oklch(.12,.02,shH), oklch(.93,.02,liH), oklch(.68,.07*c,liH+20), oklch(.14,.02,shH),
+         oklch(.93,.05,shH), oklch(.65,.15*c,liH-10), oklch(.78,.12*c,shH)];
+  }
+  const nouns=["Hour","Room","Veil","Bloom","Haze","Tide","Glass","Field","Light","Study"];
+  const cap=w=>w[0].toUpperCase()+w.slice(1);
+  const nm = words.length ? words.slice(0,2).map(cap).join(" ")+" "+nouns[Math.floor(r()*nouns.length)] : "Shuffle "+(salt+1);
+  return {name:nm, c:pal};
+}
+let sampleFn=null;
+(async()=>{ try{ if(window.claude?.use){ sampleFn = await window.claude.use("sample"); } }catch(e){ sampleFn=null; } const n=$("#moodNote"); if(n && !sampleFn) n.textContent="Uses the built-in mood generator."; })();
+let dlFn=null;
+(async()=>{ try{ if(window.claude?.use){ dlFn = await window.claude.use("downloads"); } }catch(e){ dlFn=null; } })();
+
+async function generateMood(){
+  const text=$("#moodIn").value.trim();
+  const note=$("#moodNote"), btn=$("#moodGo");
+  if(!text){ note.textContent="Describe a mood first, like “late summer grief” or “cold neon chapel”."; return; }
+  if(sampleFn){
+    btn.disabled=true; note.textContent="Asking Claude for a palette…";
+    const prompt=`You are a colorist for analog double-exposure portrait photography: a crisp human silhouette filled with a blurred, gradient-mapped subject, with light projected through leaves or flowers, film grain and halation. Design one palette for the mood: "${text}".
+Reply with only JSON: {"name": "2-3 word evocative name", "bg": "#hex backdrop/paper", "bg2": "#hex second backdrop tone for a soft gradient", "shadow": "#hex darkest tone inside the silhouette", "mid": "#hex midtone inside the silhouette", "high": "#hex highlight inside the silhouette", "light": "#hex core color of the projected light", "ember": "#hex saturated color at the edges of light patches", "halo": "#hex glow around the silhouette edge"}.
+Rules: sophisticated film-like combinations, never neon unless asked; contrasting temperature between shadow and light; slightly desaturated backdrop; one saturated accent in ember; strong value contrast between bg and shadow. If the mood is nocturnal, use a dark backdrop and make shadow light and high dark so the figure glows.`;
+    try{
+      const j=await sampleFn.json(prompt,{modelTier:"quick"});
+      const cols=PAL_KEYS.map(k=>String(j[k]||"").trim());
+      if(!cols.every(h=>/^#[0-9a-fA-F]{6}$/.test(h))) throw {code:"shape"};
+      applyPalette({name:String(j.name||text).slice(0,40), c:cols.map(h=>h.toLowerCase())});
+      note.textContent=`Generated by Claude: ${String(j.name||"").slice(0,40)}`;
+    }catch(e){
+      const p=localPalette(text,shuffleN++); applyPalette(p);
+      note.textContent = e && e.code==="not_granted" ? "Claude palettes were not allowed, so the built-in generator made this one." : "Claude did not answer, so the built-in generator made this one.";
+    }
+    btn.disabled=false;
+  } else {
+    applyPalette(localPalette(text,shuffleN++));
+    note.textContent="Made by the built-in mood generator. Press again for a variation.";
+  }
+}
+
+/* ---------------- UI ---------------- */
+const SECTIONS = [
+ {id:"looks", title:"Looks", open:true, build:buildLooks},
+ {id:"palette", title:"Palette", open:true, build:buildPalette},
+ {id:"flora", title:"Floral light", open:true, build:buildFlora},
+ {id:"sil", title:"Silhouette", open:false, rows:[
+   {h:"Mask source"},
+   {k:"maskMode", l:"Source", type:"select", opts:[["auto","Person"],["key","Backdrop key"],["luma","Brightness"],["alpha","Image transparency"],["full","Whole frame"]]},
+   {k:"personTh", l:"Person threshold", min:.02, max:.95, step:.005, show:()=>P.maskMode==="auto"},
+   {k:"personSoft", l:"Threshold softness", min:.005, max:.4, step:.005, show:()=>P.maskMode==="auto"},
+   {k:"keyTol", l:"Key tolerance", min:0, max:.6, step:.005, show:()=>P.maskMode==="key"||P.maskMode==="luma"},
+   {k:"keySoft", l:"Key softness", min:.01, max:.4, step:.005, show:()=>P.maskMode==="key"||P.maskMode==="luma"},
+   {k:"lumaDarker", l:"Subject darker", type:"toggle", show:()=>P.maskMode==="luma"},
+   {k:"invertMask", l:"Invert mask", type:"toggle"},
+   {k:"smoothing", l:"Video steadiness", min:0, max:.97, step:.01, show:()=>S.kind==="video"},
+   {h:"Edge"},
+   {k:"feather", l:"Feather", min:0, max:4, step:.05},
+   {k:"edge", l:"Edge softness", min:0, max:.8, step:.005},
+   {k:"grow", l:"Grow", min:.1, max:.9, step:.005},
+   {k:"density", l:"Opacity", min:0, max:1, step:.01},
+   {h:"Fixer bleed"},
+   {k:"bleed", l:"Bleed", min:0, max:1, step:.01},
+   {k:"water", l:"Watercolor", min:0, max:1, step:.01},
+   {k:"rag", l:"Raggedness", min:.3, max:3, step:.01, show:()=>P.water>0},
+   {k:"washDens", l:"Wash density", min:.1, max:1.4, step:.01, show:()=>P.water>0},
+   {k:"bleedSize", l:"Reach", min:.5, max:14, step:.1},
+   {k:"bleedScale", l:"Patchiness", min:.5, max:6, step:.05},
+   {k:"flow", l:"Flow", min:0, max:1.5, step:.01},
+   {k:"tide", l:"Tide line", min:0, max:1, step:.01},
+   {k:"mottle", l:"Mottle", min:0, max:1, step:.01},
+   {h:"Fade"},
+   {k:"fade", l:"Fade from bottom", min:0, max:.9, step:.01},
+   {k:"fadeSoft", l:"Fade softness", min:.01, max:.4, step:.005},
+   {k:"fadeRough", l:"Torn edge", min:0, max:1.5, step:.01},
+   {h:"Glow"},
+   {k:"halo", l:"Halo", min:0, max:1.5, step:.01},
+   {k:"haloSize", l:"Halo spread", min:.3, max:10, step:.1},
+   {k:"rim", l:"Inner rim", min:0, max:1.5, step:.01},
+   {k:"ghost", l:"Ghost copy", min:0, max:1, step:.01},
+   {k:"ghostX", l:"Ghost X", min:-.3, max:.3, step:.005, show:()=>P.ghost>0},
+   {k:"ghostY", l:"Ghost Y", min:-.3, max:.3, step:.005, show:()=>P.ghost>0},
+ ]},
+ {id:"inside", title:"Interior", open:false, rows:[
+   {k:"blur", l:"Blur", min:0, max:8, step:.05},
+   {k:"detail", l:"Sharp detail", min:0, max:1, step:.01},
+   {k:"sharpen", l:"Sharpen", min:0, max:3, step:.01},
+   {k:"clarity", l:"Clarity", min:-1, max:3, step:.01},
+   {k:"exposure", l:"Exposure", min:-.5, max:.5, step:.01},
+   {k:"contrast", l:"Contrast", min:.3, max:4, step:.01},
+   {k:"keep", l:"Original color", min:0, max:1, step:.01},
+ ]},
+ {id:"film", title:"Film", open:false, rows:[
+   {k:"grain", l:"Grain", min:0, max:1.2, step:.01},
+   {k:"grainSize", l:"Grain size", min:.6, max:4, step:.05},
+   {k:"halation", l:"Halation", min:0, max:1.5, step:.01},
+   {k:"chroma", l:"Color fringe", min:0, max:1.5, step:.01},
+   {k:"vignette", l:"Vignette", min:0, max:1, step:.01},
+   {k:"lift", l:"Faded blacks", min:0, max:1, step:.01},
+   {k:"dust", l:"Dust", min:0, max:1, step:.01},
+   {k:"dustOp", l:"Dust opacity", min:0, max:1, step:.01, show:()=>P.dust>0},
+   {k:"leak", l:"Light leak", min:0, max:1, step:.01},
+ ]},
+ {id:"export", title:"Export", open:false, rows:[
+   {h:"Image"},
+   {k:"imgFormat", l:"Format", type:"seg", opts:[["png","PNG"],["jpg","JPG"],["webp","WebP"]]},
+   {k:"imgSize", l:"Size", type:"select", opts:[["preview","Preview"],["source","Source size"],["1080","1080 px short edge"],["2048","2048 px long edge"],["4096","4096 px long edge"],["custom","Custom long edge"]]},
+   {k:"imgLong", l:"Long edge px", min:256, max:8192, step:16, show:()=>P.imgSize==="custom"},
+   {k:"imgQuality", l:"Quality", min:.5, max:1, step:.01, show:()=>P.imgFormat!=="png"},
+   {h:"Video"},
+   {k:"vFormat", l:"Format", type:"seg", opts:[["mp4","MP4"],["webm","WebM"]]},
+   {k:"vSize", l:"Size", type:"select", opts:[["720","720p"],["1080","1080p"],["preview","Preview"],["source","Source size"],["2160","4K long edge"],["custom","Custom long edge"]]},
+   {k:"vLong", l:"Long edge px", min:256, max:4096, step:16, show:()=>P.vSize==="custom"},
+   {k:"vQuality", l:"Quality", type:"seg", opts:[["low","Low"],["medium","Med"],["high","High"],["max","Max"]]},
+   {k:"vFps", l:"Frame rate", type:"seg", opts:[["24","24"],["25","25"],["30","30"],["60","60"]]},
+   {k:"vDurMode", l:"Duration", type:"seg", opts:[["clip","Whole clip"],["custom","Set"]], show:()=>S.kind==="video"},
+   {k:"vSecs", l:"Seconds", min:1, max:60, step:.5, show:()=>S.kind!=="video"||P.vDurMode==="custom"},
+   {note:"Video renders offline frame by frame, so it never drops frames. A set duration on a video starts at the current playhead and loops the clip if needed. Raise Wind for moving leaves."},
+ ]},
+];
+const FLORA_ROWS = [
+  {k:"polarity", l:"Shapes cast", type:"seg", opts:[[0,"Light"],[1,"Shadow"]]},
+  {h:"Shape"},
+  {k:"gScale", l:"Scale", min:.5, max:12, step:.05, show:()=>P.gobo!=="branch"},
+  {k:"gScale", l:"Zoom", min:.4, max:3, step:.01, alias:1, show:()=>P.gobo==="branch"},
+  {k:"gDens", l:"Density", min:0, max:1, step:.01},
+  {k:"gWidth", l:"Leaf width", min:.08, max:1, step:.01, show:()=>["leaves","sprig","blossom"].includes(P.gobo)},
+  {k:"gPetals", l:"Petals", min:3, max:16, step:1, show:()=>P.gobo==="blossom"},
+  {k:"gLeaflets", l:"Leaflets", min:2, max:16, step:1, show:()=>P.gobo==="sprig"},
+  {k:"gPairs", l:"Paired leaflets", type:"toggle", show:()=>P.gobo==="sprig"},
+  {k:"gBend", l:"Stem bend", min:-1, max:1, step:.01, show:()=>P.gobo==="sprig"},
+  {k:"gRot", l:"Rotation", min:-3.14, max:3.14, step:.01},
+  {k:"gSpread", l:"Scatter angle", min:0, max:1, step:.01, show:()=>["leaves","sprig","blossom"].includes(P.gobo)},
+  {k:"gLayers", l:"Depth layers", min:1, max:3, step:1, show:()=>["leaves","sprig","blossom"].includes(P.gobo)},
+  {k:"gDepth", l:"Depth blur", min:0, max:1.5, step:.01, show:()=>["leaves","sprig","blossom","branch"].includes(P.gobo)},
+  {k:"imgContrast", l:"Overlay contrast", min:.2, max:4, step:.05, show:()=>P.gobo==="image"},
+  {k:"imgInvert", l:"Invert overlay", type:"toggle", show:()=>P.gobo==="image"},
+  {k:"gSoft", l:"Shadow softness", min:.002, max:.2, step:.002},
+  {k:"gFocus", l:"Focus blur", min:0, max:4, step:.05},
+  {k:"wind", l:"Wind", min:0, max:2, step:.01},
+  {k:"flutter", l:"Leaf flutter", min:0, max:2, step:.01, show:()=>P.gobo==="branch"},
+  {k:"panX", l:"Pan X", min:-1, max:1, step:.005},
+  {k:"panY", l:"Pan Y", min:-1, max:1, step:.005},
+  {h:"Light"},
+  {k:"light", l:"Intensity", min:0, max:1.6, step:.01},
+  {k:"lightBleed", l:"Light bleed", min:0, max:1.5, step:.01},
+  {k:"emberAmt", l:"Ember edge", min:0, max:1.6, step:.01},
+  {k:"spill", l:"On backdrop", min:0, max:1.2, step:.01},
+  {k:"pool", l:"Spotlight", min:0, max:1, step:.01},
+  {k:"poolX", l:"Spot X", min:0, max:1, step:.005, show:()=>P.pool>0},
+  {k:"poolY", l:"Spot Y", min:0, max:1, step:.005, show:()=>P.pool>0},
+  {k:"poolSize", l:"Spot size", min:.05, max:1.2, step:.005, show:()=>P.pool>0},
+  {k:"poolSoft", l:"Spot softness", min:.05, max:1, step:.01, show:()=>P.pool>0},
+];
+const ctrls={};
+function fmt(v,step){ return step>=1 ? String(Math.round(v)) : (Math.abs(v)<10? v.toFixed(2) : v.toFixed(1)); }
+function buildRows(host, rows){
+  for(const r of rows){
+    if(r.h){ const d=document.createElement("div"); d.className="sub-h"; d.textContent=r.h; host.appendChild(d); continue; }
+    if(r.note){ const d=document.createElement("div"); d.className="note"; d.textContent=r.note; host.appendChild(d); continue; }
+    const row=document.createElement("div"); row.className="row";
+    const ck=r.alias?r.k+"_"+r.alias:r.k; const id="c_"+ck;
+    const lab=document.createElement("label"); lab.textContent=r.l; lab.htmlFor=id; row.appendChild(lab);
+    let input, out=document.createElement("output");
+    if(r.type==="select"){
+      input=document.createElement("select"); input.id=id;
+      for(const [v,t] of r.opts){ const o=document.createElement("option"); o.value=v; o.textContent=t; input.appendChild(o); }
+      input.onchange=()=>setP(r.k,input.value);
+      row.style.gridTemplateColumns="96px minmax(0,1fr)"; out=null;
+    } else if(r.type==="toggle"){
+      input=document.createElement("input"); input.type="checkbox"; input.id=id;
+      input.onchange=()=>setP(r.k,input.checked?1:0);
+      row.style.gridTemplateColumns="96px auto"; out=null;
+    } else if(r.type==="seg"){
+      input=document.createElement("div"); input.className="seg"; input.id=id; input.setAttribute("role","group");
+      for(const [v,t] of r.opts){ const b=document.createElement("button"); b.type="button"; b.textContent=t; b.dataset.v=v; b.onclick=()=>setP(r.k,typeof v==="number"?v:v); input.appendChild(b); }
+      row.style.gridTemplateColumns="96px auto"; out=null;
+    } else {
+      input=document.createElement("input"); input.type="range"; input.id=id; input.min=r.min; input.max=r.max; input.step=r.step;
+      input.oninput=()=>{ setP(r.k,+input.value,true); out.textContent=fmt(+input.value,r.step); };
+    }
+    row.appendChild(input); if(out) row.appendChild(out);
+    host.appendChild(row);
+    ctrls[ck]={r,input,out,row};
+  }
+}
+function syncControls(){
+  for(const k in ctrls){
+    const {r,input,out,row}=ctrls[k];
+    const v=P[r.k];
+    if(r.type==="select") input.value=v;
+    else if(r.type==="toggle") input.checked=!!v;
+    else if(r.type==="seg") [...input.children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===String(v))));
+    else { input.value=v; out.textContent=fmt(v,r.step); }
+    row.hidden = r.show ? !r.show() : false;
+  }
+  document.querySelectorAll("[data-flora]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.flora===P.flora)));
+  markLooks();
+  syncPalette();
+}
+let floraTimer=null;
+function setP(k,v,fromSlider){
+  P[k]=v; dirty=true;
+  if(k==="wind"||k==="flutter") floraDirty=true;
+  if(k==="gDens" && P.gobo==="branch"){ clearTimeout(floraTimer); floraTimer=setTimeout(buildFloraTex,140); }
+  if(k.startsWith("g")||k==="polarity"||k==="wind"||k.startsWith("pan")) {/* overlay tweak keeps preset highlight */}
+  if(k==="maskMode"){ if(v==="auto" && mpState==="failed") S.retrySeg=true; ensureMask(); }
+  if(["personTh","personSoft","keyTol","keySoft","lumaDarker","invertMask","maskMode"].includes(k)) S.newMask=true;
+  if(!fromSlider || ["ghost","pool"].includes(k)) syncControls();
+  if(k==="wind" && !fromSlider) syncControls();
+}
+function applyFlora(id){
+  const f=FLORA.find(x=>x.id===id); if(!f) return;
+  Object.assign(P,{gWidth:.45,gSpread:1,gLayers:3,gSoft:.03,gRot:.4},f.p); P.flora=id;
+  if(f.kind){ P.floraKind=f.kind; buildFloraTex(); }
+  dirty=true; syncControls();
+}
+function lookSwatch(c){ return `background:radial-gradient(circle at 60% 55%, ${c[5]} 0 10%, ${c[6]} 22%, transparent 42%),radial-gradient(ellipse 30% 70% at 50% 90%, ${c[2]} 0 60%, ${c[7]} 75%, transparent 85%),linear-gradient(160deg, ${c[0]}, ${c[1]})`; }
+function buildLooks(host){
+  const g=document.createElement("div"); g.className="looks";
+  LOOKS.forEach((L,i)=>{
+    const b=document.createElement("button"); b.type="button"; b.className="look"; b.dataset.look=i;
+    b.innerHTML=`<span class="sw" style="${lookSwatch(PALETTES[L.pal].c)}"></span><span class="n">${L.name}</span>`;
+    b.onclick=()=>applyLook(i);
+    g.appendChild(b);
+  });
+  host.appendChild(g);
+  const h=document.createElement("div"); h.className="sub-h"; h.textContent="Your looks"; host.appendChild(h);
+  const cg=document.createElement("div"); cg.className="looks"; cg.id="customLooks"; host.appendChild(cg);
+  const row=document.createElement("div"); row.className="mood";
+  row.innerHTML=`<input id="lookName" type="text" placeholder="Name this look" aria-label="Look name" maxlength="40"><button class="btn" id="lookSave" type="button">Save as new</button><button class="btn" id="lookUpdate" type="button" disabled>Update</button>`;
+  host.appendChild(row);
+  const note=document.createElement("div"); note.className="note"; note.id="lookNote"; host.appendChild(note);
+  setTimeout(()=>{ $("#lookSave").onclick=()=>saveLook(false); $("#lookUpdate").onclick=()=>saveLook(true); $("#lookName").addEventListener("keydown",e=>{ if(e.key==="Enter") saveLook(false); }); initLookStore(); });
+}
+
+/* ---------------- Saved looks: private to each viewer (artifact database), browser storage as fallback ---------------- */
+const LOOK_SKIP=["maskMode","personTh","personSoft","keyTol","keySoft","lumaDarker","invertMask","smoothing","imgFormat","imgSize","imgLong","imgQuality","vFormat","vSize","vLong","vQuality","vFps","vDurMode","vSecs"];
+let customLooks=[], activeCustom=null, lookStore=null;
+function lsLooks(save){
+  try{ if(save) localStorage.setItem("ghostlight.looks",JSON.stringify(customLooks)); else customLooks=JSON.parse(localStorage.getItem("ghostlight.looks")||"[]"); }catch(e){ if(!save) customLooks=[]; }
+}
+async function initLookStore(){
+  try{
+    if(window.claude?.use){
+      const [db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+      const uid = user ? await user.id() : null;
+      if(db && uid){
+        lookStore=db.collection("data/users/"+uid+"/looks");
+        lookStore.onSnapshot(snap=>{
+          customLooks=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.created||0)-(b.created||0));
+          renderCustom();
+        },()=>{ lookStore=null; lsLooks(false); renderCustom(); $("#lookNote").textContent="Saved looks are kept in this browser only."; });
+        return;
+      }
+    }
+  }catch(e){ lookStore=null; }
+  lsLooks(false); renderCustom();
+  $("#lookNote").textContent="Saved looks are kept in this browser.";
+}
+function renderCustom(){
+  const g=$("#customLooks"); if(!g) return; g.innerHTML="";
+  if(!customLooks.length){ const e=document.createElement("div"); e.className="note"; e.style.gridColumn="1/-1"; e.textContent="Tune any look, name it below and save it. Your looks appear here."; g.appendChild(e); }
+  customLooks.forEach(L=>{
+    const w=document.createElement("div"); w.style.position="relative";
+    const b=document.createElement("button"); b.type="button"; b.className="look"; b.dataset.custom=L.id; b.style.width="100%";
+    b.innerHTML=`<span class="sw" style="${lookSwatch(L.pal||PAL)}"></span><span class="n">${esc(L.name)}</span>`;
+    b.onclick=()=>applyCustom(L.id);
+    const x=document.createElement("button"); x.type="button"; x.className="lookdel"; x.textContent="×"; x.title="Delete look"; x.setAttribute("aria-label","Delete "+L.name);
+    x.onclick=e=>{ e.stopPropagation(); deleteLook(L.id); };
+    w.append(b,x); g.appendChild(w);
+  });
+  markLooks();
+}
+function markLooks(){
+  document.querySelectorAll("[data-look]").forEach(b=>b.setAttribute("aria-pressed",String(activeCustom==null && +b.dataset.look===lookIdx)));
+  document.querySelectorAll("[data-custom]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.custom===activeCustom)));
+  const up=$("#lookUpdate"); if(up){ const L=customLooks.find(l=>l.id===activeCustom); up.disabled=!L; up.textContent=L?`Update “${L.name.slice(0,14)}”`:"Update"; }
+}
+function snapshotLook(name){
+  const p={}; for(const k in P) if(!LOOK_SKIP.includes(k)) p[k]=P[k];
+  return {name, p:JSON.stringify(p), pal:PAL.slice(), palName, created:Date.now()};
+}
+async function saveLook(update){
+  const note=$("#lookNote"), inp=$("#lookName");
+  const cur=customLooks.find(l=>l.id===activeCustom);
+  let name=(inp.value||"").trim();
+  if(update){ if(!cur) return; name=name||cur.name; }
+  else if(!name){ name=(activeCustom&&cur? cur.name : LOOKS[lookIdx]?.name||"Look")+" variant"; }
+  const data=snapshotLook(name);
+  if(update) data.created=cur.created||Date.now();
+  try{
+    if(lookStore){
+      if(update){ await lookStore.doc(cur.id).set(data); }
+      else { const ref=await lookStore.add(data); activeCustom=ref.id; }
+    } else {
+      if(update){ Object.assign(cur,data); }
+      else { const id="l"+Date.now().toString(36); customLooks.push({id,...data}); activeCustom=id; }
+      lsLooks(true); renderCustom();
+    }
+    inp.value=""; note.textContent=update?`Updated “${name}”.`:`Saved “${name}”.`; markLooks();
+  }catch(e){ note.textContent="The look could not be saved. Try again in a moment."; }
+}
+async function deleteLook(id){
+  const L=customLooks.find(l=>l.id===id); if(!L) return;
+  const note=$("#lookNote");
+  if(note.dataset.confirm!==id){ note.dataset.confirm=id; note.textContent=`Press × again to delete “${L.name}”.`; setTimeout(()=>{ if(note.dataset.confirm===id){ note.dataset.confirm=""; note.textContent=""; } },4000); return; }
+  note.dataset.confirm="";
+  try{
+    if(lookStore) await lookStore.doc(id).delete();
+    else { customLooks=customLooks.filter(l=>l.id!==id); lsLooks(true); renderCustom(); }
+    if(activeCustom===id) activeCustom=null;
+    note.textContent=`Deleted “${L.name}”.`; markLooks();
+  }catch(e){ note.textContent="The look could not be deleted. Try again in a moment."; }
+}
+function applyCustom(id){
+  const L=customLooks.find(l=>l.id===id); if(!L) return;
+  let p={}; try{ p=JSON.parse(L.p||"{}"); }catch(e){}
+  const keep={}; for(const k of LOOK_SKIP) keep[k]=P[k];
+  P={...DEF,...p,...keep};
+  if(P.gobo==="image" && !S.goboAspect){ P.gobo="dapple"; P.flora="dapple"; }
+  if(Array.isArray(L.pal)&&L.pal.length===8){ PAL=L.pal.slice(); palName=L.palName||L.name; }
+  if(P.gobo==="branch") buildFloraTex();
+  activeCustom=id; dirty=true; syncControls(); markLooks();
+  $("#lookName").value=""; $("#lookNote").textContent=`“${L.name}” loaded. Adjust anything, then Update or Save as new.`;
+}
+function applyLook(i){
+  const L=LOOKS[i]; lookIdx=i; activeCustom=null;
+  const keep={dust:P.dust,dustOp:P.dustOp,sharpen:P.sharpen,clarity:P.clarity,maskMode:P.maskMode,personTh:P.personTh,personSoft:P.personSoft,keyTol:P.keyTol,keySoft:P.keySoft,lumaDarker:P.lumaDarker,invertMask:P.invertMask,imgFormat:P.imgFormat,imgSize:P.imgSize,imgLong:P.imgLong,imgQuality:P.imgQuality,vFormat:P.vFormat,vSize:P.vSize,vLong:P.vLong,vQuality:P.vQuality,vFps:P.vFps,vDurMode:P.vDurMode,vSecs:P.vSecs,seed:P.seed,smoothing:P.smoothing};
+  P={...DEF,...keep};
+  const fl=FLORA.find(x=>x.id===L.p.flora); if(fl) Object.assign(P,fl.p);
+  Object.assign(P,L.p);
+  if(fl && fl.kind){ P.floraKind=fl.kind; buildFloraTex(); }
+  PAL=PALETTES[L.pal].c.slice(); palName=PALETTES[L.pal].name;
+  dirty=true; syncControls();
+}
+function buildPalette(host){
+  const sw=document.createElement("div"); sw.className="swatches";
+  PAL_KEYS.forEach((k,i)=>{
+    const w=document.createElement("label"); w.className="swatch";
+    const inp=document.createElement("input"); inp.type="color"; inp.id="sw_"+k; inp.setAttribute("aria-label",PAL_LABELS[i]);
+    inp.oninput=()=>{ PAL[i]=inp.value; palName="Custom"; dirty=true; markPal(); };
+    const s=document.createElement("span"); s.textContent=PAL_LABELS[i];
+    w.append(inp,s); sw.appendChild(w);
+  });
+  host.appendChild(sw);
+  const h=document.createElement("div"); h.className="sub-h"; h.textContent="Generate from a mood"; host.appendChild(h);
+  const mood=document.createElement("div"); mood.className="mood";
+  mood.innerHTML=`<input id="moodIn" type="text" placeholder="e.g. late summer grief" aria-label="Mood"><button class="btn" id="moodGo" type="button">Generate</button><button class="btn" id="moodShuffle" type="button" title="Random harmonious palette">Shuffle</button>`;
+  host.appendChild(mood);
+  const note=document.createElement("div"); note.className="note"; note.id="moodNote"; host.appendChild(note);
+  const h2=document.createElement("div"); h2.className="sub-h"; h2.textContent="Palettes"; host.appendChild(h2);
+  const grid=document.createElement("div"); grid.className="palettes"; grid.id="palGrid"; host.appendChild(grid);
+  setTimeout(()=>{
+    renderPalGrid();
+    $("#moodGo").onclick=generateMood;
+    $("#moodIn").addEventListener("keydown",e=>{ if(e.key==="Enter") generateMood(); });
+    $("#moodShuffle").onclick=()=>{ const t=$("#moodIn").value.trim(); applyPalette(localPalette(t||String(Date.now()), shuffleN++)); $("#moodNote").textContent = t ? "Variation from the built-in generator." : "Random palette from the built-in generator."; };
+  });
+}
+const userPals=[];
+function renderPalGrid(){
+  const grid=$("#palGrid"); if(!grid) return; grid.innerHTML="";
+  [...userPals, ...PALETTES].forEach(p=>{
+    const b=document.createElement("button"); b.type="button"; b.className="pal"; b.dataset.pal=p.name;
+    b.innerHTML=`<span class="strip">${p.c.map(c=>`<i style="background:${c}"></i>`).join("")}</span><span>${esc(p.name)}</span>`;
+    b.onclick=()=>applyPalette(p,true);
+    grid.appendChild(b);
+  });
+  markPal();
+}
+function applyPalette(p, fromGrid){
+  PAL=p.c.slice(); palName=p.name;
+  if(!fromGrid && !PALETTES.includes(p) && !userPals.includes(p)){ userPals.unshift(p); if(userPals.length>6) userPals.pop(); renderPalGrid(); }
+  dirty=true; syncPalette();
+}
+function syncPalette(){ PAL_KEYS.forEach((k,i)=>{ const el=$("#sw_"+k); if(el) el.value=PAL[i]; }); markPal(); }
+function markPal(){ document.querySelectorAll(".pal").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.pal===palName))); }
+function buildFlora(host){
+  const chips=document.createElement("div"); chips.className="chips";
+  for(const f of FLORA){ const b=document.createElement("button"); b.type="button"; b.className="chip"; b.dataset.flora=f.id; b.textContent=f.name; b.onclick=()=>applyFlora(f.id); chips.appendChild(b); }
+  const up=document.createElement("button"); up.type="button"; up.className="chip"; up.dataset.flora="image"; up.textContent="Your overlay…"; up.onclick=()=>$("#goboFile").click(); chips.appendChild(up);
+  host.appendChild(chips);
+  buildRows(host,FLORA_ROWS);
+}
+function buildPanel(){
+  const panel=$("#panel");
+  for(const s of SECTIONS){
+    const d=document.createElement("details"); if(s.open) d.open=true;
+    const sm=document.createElement("summary"); sm.textContent=s.title; d.appendChild(sm);
+    const body=document.createElement("div"); body.className="sec"; d.appendChild(body);
+    if(s.build) s.build(body); else buildRows(body,s.rows);
+    panel.appendChild(d);
+  }
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function setStatus(html){ $("#status").innerHTML=html; }
+
+/* ---------------- Overlay upload ---------------- */
+$("#goboFile").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return; e.target.value="";
+  const url=URL.createObjectURL(f);
+  if(S.goboVideo){ S.goboVideo.pause(); S.goboVideo=null; }
+  if(f.type.startsWith("video")){
+    const v=document.createElement("video"); v.muted=true; v.loop=true; v.playsInline=true; v.src=url;
+    await new Promise(r=>v.onloadeddata=r); try{ await v.play(); }catch(_){}
+    S.goboVideo=v; S.goboAspect=v.videoWidth/v.videoHeight; upload(T.img,v,false);
+  } else {
+    const im=new Image(); im.src=url; try{ await im.decode(); }catch(_){ setStatus("That overlay could not be opened."); return; }
+    S.goboAspect=im.naturalWidth/im.naturalHeight; upload(T.img,im,false);
+  }
+  P.gobo="image"; P.flora="image"; P.gScale=4; P.panX=0; P.panY=0; P.gRot=0; dirty=true; syncControls();
+  setStatus(`Overlay <b>${esc(f.name)}</b> loaded. Bright areas become light; use Invert overlay for shadows.`);
+};
+
+/* ---------------- Files, views, export ---------------- */
+$("#btnOpen").onclick=()=>$("#file").click();
+$("#file").onchange=e=>{ const f=e.target.files[0]; e.target.value=""; loadSource(f).catch(err=>{ console.warn(err); setStatus("That file could not be opened. Try a JPG, PNG, WebP, MP4 or WebM."); }); };
+const stage=$("#stage"), drop=$("#drop");
+stage.addEventListener("dragover",e=>{ e.preventDefault(); drop.hidden=false; });
+stage.addEventListener("dragleave",e=>{ if(!stage.contains(e.relatedTarget)) drop.hidden=true; });
+stage.addEventListener("drop",e=>{ e.preventDefault(); drop.hidden=true; const f=e.dataTransfer.files[0]; if(f) loadSource(f).catch(()=>setStatus("That file could not be opened.")); });
+function setView(v){ view=v; $("#vRes").setAttribute("aria-pressed",String(v===0)); $("#vMask").setAttribute("aria-pressed",String(v===1)); dirty=true; }
+$("#vRes").onclick=()=>setView(0);
+$("#vMask").onclick=()=>setView(1);
+let prevView=0;
+const holdOn=()=>{ prevView=view; view=2; $("#vOrig").setAttribute("aria-pressed","true"); dirty=true; };
+const holdOff=()=>{ if(view!==2) return; view=prevView; $("#vOrig").setAttribute("aria-pressed","false"); dirty=true; };
+$("#vOrig").addEventListener("pointerdown",holdOn);
+["pointerup","pointerleave","pointercancel"].forEach(ev=>$("#vOrig").addEventListener(ev,holdOff));
+$("#vOrig").addEventListener("keydown",e=>{ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); holdOn(); } });
+$("#vOrig").addEventListener("keyup",holdOff);
+$("#btnSeed").onclick=()=>{ P.seed=Math.floor(Math.random()*997)+1; if(P.gobo==="branch") buildFloraTex(); dirty=true; };
+const seekEl=$("#seek"), seekT=$("#seekT"); let scrubbing=false;
+const fmtT=t=>{ t=Math.max(0,t||0); const m=Math.floor(t/60), s=Math.floor(t%60); return m+":"+String(s).padStart(2,"0"); };
+function syncScrub(){
+  if(S.kind!=="video"||!S.el) return;
+  const d=S.el.duration||0;
+  if(!scrubbing && d) seekEl.value=S.el.currentTime/d;
+  seekT.textContent=fmtT(S.el.currentTime)+" / "+fmtT(d);
+}
+seekEl.addEventListener("pointerdown",()=>{ scrubbing=true; });
+["pointerup","pointercancel","change"].forEach(ev=>seekEl.addEventListener(ev,()=>{ scrubbing=false; }));
+seekEl.addEventListener("input",()=>{
+  if(S.kind!=="video"||analyzing) return;
+  const d=S.el.duration||0; if(!d) return;
+  S.el.currentTime=Math.min(d-.001,+seekEl.value*d);
+  seekT.textContent=fmtT(S.el.currentTime)+" / "+fmtT(d);
+});
+function onVideoSeeked(){
+  if(analyzing || S.kind!=="video") return;
+  const v=S.el;
+  if(P.maskMode==="auto" && mpState==="ready"){ if(segBusy) S.segAgain=true; else runSeg(); }
+  else { upload(T.src,v,true); S.newMask=true; }
+  syncScrub(); dirty=true;
+}
+function updatePlayBtn(){ $("#scrubWrap").hidden=S.kind!=="video"; syncScrub(); const b=$("#btnPlay"); b.hidden=S.kind!=="video"; if(S.kind==="video") b.textContent=S.el.paused?"Play":"Pause"; syncControls(); }
+$("#btnPlay").onclick=()=>{ if(S.kind!=="video") return; if(S.el.paused) S.el.play(); else S.el.pause(); updatePlayBtn(); };
+
+async function offerFile(blob, name, kind){
+  if(dlFn){
+    try{ await dlFn.save({filename:name, data:blob}); setStatus(`Saved <b>${esc(name)}</b>.`); return; }
+    catch(e){ if(e && e.code==="declined"){ setStatus("Save cancelled."); return; } }
+  }
+  const url=URL.createObjectURL(blob);
+  const m=document.createElement("div"); m.className="modal";
+  m.innerHTML=`<div class="box"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><b>${esc(name)}</b><button class="btn" type="button">Close</button></div>${kind==="video"?`<video src="${url}" controls loop autoplay muted playsinline></video>`:`<img src="${url}" alt="Exported image">`}<div class="note">Saving is not available in this view. Right-click the ${kind} and choose Save ${kind==="video"?"video":"image"} as.</div></div>`;
+  m.querySelector("button").onclick=()=>{ m.remove(); URL.revokeObjectURL(url); };
+  document.body.appendChild(m);
+}
+/* ---------------- Export: images and videos ---------------- */
+function exportDims(sizeKey, customLong, even){
+  let W=cv.width, H=cv.height;
+  const fit=L=>{ const k=L/Math.max(S.w,S.h); W=Math.round(S.w*k); H=Math.round(S.h*k); };
+  if(sizeKey==="source"){ W=S.w; H=S.h; }
+  else if(sizeKey==="custom") fit(customLong);
+  else if(sizeKey==="720"||sizeKey==="1080"){ const sh=+sizeKey, k=sh/Math.min(S.w,S.h); W=Math.round(S.w*k); H=Math.round(S.h*k); }
+  else if(sizeKey!=="preview") fit(+sizeKey);
+  const cap=Math.min(MAXTEX,8192), k=Math.min(1,cap/Math.max(W,H)); W=Math.round(W*k); H=Math.round(H*k);
+  if(even){ W-=W%2; H-=H%2; }
+  return [Math.max(2,W),Math.max(2,H)];
+}
+const stamp=()=>new Date().toISOString().slice(0,19).replace(/[-:T]/g,"");
+$("#btnPng").onclick=async()=>{
+  if(exporting) return;
+  const btn=$("#btnPng"); btn.disabled=true;
+  const pw=cv.width, ph=cv.height;
+  const [W,H]=exportDims(P.imgSize,P.imgLong,false);
+  const mime={png:"image/png",jpg:"image/jpeg",webp:"image/webp"}[P.imgFormat]||"image/png";
+  const pv=view; view=0;
+  cv.width=W; cv.height=H; render(W,H);
+  const blob=await new Promise(r=>cv.toBlob(r,mime,P.imgQuality));
+  cv.width=pw; cv.height=ph; view=pv; dirty=true;
+  btn.disabled=false;
+  if(!blob){ setStatus("Export failed. Try a smaller image size."); return; }
+  const ext=blob.type==="image/jpeg"?"jpg":blob.type==="image/webp"?"webp":"png";
+  if(ext!==P.imgFormat && !(ext==="jpg"&&P.imgFormat==="jpg")) setStatus(`This browser cannot write ${P.imgFormat.toUpperCase()}, so the image was saved as ${ext.toUpperCase()}.`);
+  offerFile(blob,`ghostlight-${stamp()}-${W}x${H}.${ext}`,"image");
+};
+
+function seekTo(v,t){ return new Promise(res=>{ let done=false; const fin=()=>{ if(done) return; done=true; v.removeEventListener("seeked",fin); res(); }; v.addEventListener("seeked",fin); setTimeout(fin,1500); v.currentTime=Math.min(Math.max(0,t),Math.max(0,(v.duration||0)-.001)); }); }
+const waitFor=(fn,ms)=>new Promise(res=>{ const t0=performance.now(); const tick=()=>{ if(fn()||performance.now()-t0>ms) res(); else setTimeout(tick,4); }; tick(); });
+let exporting=false, cancelExport=false;
+const VQ={low:4,medium:10,high:20,max:40};
+async function pickCodec(fmt,W,H,fps,bitrate){
+  const list = fmt==="mp4" ? ["avc1.640034","avc1.640033","avc1.4d0034","avc1.42003e","avc1.42001f"] : ["vp09.00.40.08","vp09.00.10.08","vp8"];
+  for(const codec of list){
+    const cfg={codec,width:W,height:H,bitrate,framerate:fps,bitrateMode:"variable"};
+    if(fmt==="mp4") cfg.avc={format:"avc"};
+    try{ const s=await VideoEncoder.isConfigSupported(cfg); if(s.supported) return cfg; }catch(e){}
+  }
+  return null;
+}
+function setExportUi(on,text){
+  const b=$("#btnRec"); b.dataset.on=on?"1":"0"; b.textContent=on?(text||"Cancel export"):"Export video";
+  $("#btnPng").disabled=on;
+}
+async function exportVideo(){
+  if(exporting){ cancelExport=true; return; }
+  if(!("VideoEncoder" in window) || !("VideoFrame" in window)) return legacyRecord();
+  const fmt=P.vFormat, fps=+P.vFps;
+  const [W,H]=exportDims(P.vSize,P.vLong,true);
+  const bitrate=Math.round((VQ[P.vQuality]||10)*1e6*Math.max(.35,(W*H)/(1920*1080)));
+  const cfg=await pickCodec(fmt,W,H,fps,bitrate);
+  if(!cfg){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported(fmt==="mp4"?"video/mp4":"video/webm")){ setStatus(`Offline ${fmt.toUpperCase()} encoding is not available in this browser, so it records in real time instead.`); return legacyRecord(); }
+    setStatus(`This browser cannot encode ${fmt.toUpperCase()} at ${W}×${H}. Try ${fmt==="mp4"?"WebM":"MP4"} or a smaller size.`); return;
+  }
+  if(fmt==="mp4" && !window.Mp4Muxer) await loadScript("lib/mp4-muxer.js");
+  if(fmt==="webm" && !window.WebMMuxer) await loadScript("lib/webm-muxer.js");
+  let dur, t0=0; const isVid=S.kind==="video", v=S.el;
+  if(isVid){ const d=v.duration||0; if(P.vDurMode==="clip"){ dur=d; t0=0; } else { dur=P.vSecs; t0=v.currentTime||0; } }
+  else dur=P.vSecs;
+  const N=Math.max(1,Math.round(dur*fps));
+  const muxer = fmt==="mp4"
+    ? new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), video:{codec:"avc",width:W,height:H,frameRate:fps}, fastStart:"in-memory"})
+    : new WebMMuxer.Muxer({target:new WebMMuxer.ArrayBufferTarget(), video:{codec:cfg.codec.startsWith("vp8")?"V_VP8":"V_VP9",width:W,height:H,frameRate:fps}});
+  let encErr=null;
+  const enc=new VideoEncoder({output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta), error:e=>{ encErr=e; }});
+  enc.configure(cfg);
+  exporting=true; cancelExport=false; setExportUi(true);
+  const wasPaused=isVid?v.paused:true; if(isVid) v.pause();
+  const pw=cv.width, ph=cv.height, pv=view, baseTime=time, baseFrame=frameNo;
+  view=0; cv.width=W; cv.height=H;
+  try{
+    for(let i=0;i<N;i++){
+      if(cancelExport||encErr) break;
+      const t=i/fps;
+      if(isVid){
+        const d=v.duration||1; await seekTo(v,(t0+t)%d);
+        if(P.maskMode==="auto" && mpState==="ready"){ S.segDone=false; await runSeg(); await waitFor(()=>S.segDone,2000); }
+        else upload(T.src,v,true);
+        S.newMask=true;
+      }
+      time=baseTime+t; frameNo=baseFrame+i;
+      if(P.gobo==="branch" && flora) paintFlora(time);
+      S.offline=true; render(W,H);
+      const frame=new VideoFrame(cv,{timestamp:Math.round(i*1e6/fps),duration:Math.round(1e6/fps)});
+      enc.encode(frame,{keyFrame:i%(fps*2)===0}); frame.close();
+      while(enc.encodeQueueSize>3) await new Promise(r=>setTimeout(r,4));
+      if(i%3===0){ const pct=Math.round(i/N*100); setExportUi(true,`Cancel · ${pct}%`); setStatus(`Rendering ${fmt.toUpperCase()} ${W}×${H} · frame ${i+1} of ${N}`); await new Promise(r=>setTimeout(r,0)); }
+    }
+    await enc.flush();
+  }catch(e){ encErr=encErr||e; }
+  S.offline=false; try{ enc.close(); }catch(e){}
+  cv.width=pw; cv.height=ph; view=pv; time=baseTime; dirty=true; S.newMask=true;
+  exporting=false; setExportUi(false);
+  if(isVid){ if(P.maskMode==="auto"&&mpState==="ready") runSeg(); if(!wasPaused) v.play(); updatePlayBtn(); }
+  if(encErr){ console.warn(encErr); setStatus("Video export failed. Try a smaller size or the other format."); return; }
+  if(cancelExport){ setStatus("Export cancelled."); return; }
+  muxer.finalize();
+  const blob=new Blob([muxer.target.buffer],{type:fmt==="mp4"?"video/mp4":"video/webm"});
+  setStatus(`Rendered ${(blob.size/1048576).toFixed(1)} MB ${fmt.toUpperCase()} · ${W}×${H} · ${dur.toFixed(1)} s at ${fps} fps`);
+  offerFile(blob,`ghostlight-${stamp()}-${W}x${H}.${fmt}`,"video");
+}
+
+// Fallback for browsers without WebCodecs: real-time capture of the canvas
+let rec=null;
+function legacyRecord(){
+  if(recording){ rec && rec.state!=="inactive" && rec.stop(); return; }
+  if(!window.MediaRecorder || !cv.captureStream){ setStatus("This browser cannot export video. Try Chrome, Edge or Safari."); return; }
+  const want=P.vFormat==="mp4"?["video/mp4;codecs=avc1.640028","video/mp4"]:["video/webm;codecs=vp9","video/webm"];
+  const mime=want.find(t=>MediaRecorder.isTypeSupported(t))||["video/webm","video/mp4"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+  const stream=cv.captureStream(+P.vFps), chunks=[];
+  rec=new MediaRecorder(stream,{mimeType:mime||undefined, videoBitsPerSecond:(VQ[P.vQuality]||10)*1e6});
+  rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+  let timer=null;
+  const finish=()=>{ recording=false; setExportUi(false); clearTimeout(timer); if(S.kind==="video"){ S.el.loop=true; S.el.onended=null; S.el.play(); } };
+  rec.onstop=()=>{ finish(); const ext=mime.includes("mp4")?"mp4":"webm"; offerFile(new Blob(chunks,{type:mime||"video/webm"}),`ghostlight-${stamp()}.${ext}`,"video"); };
+  recording=true; setView(0); setExportUi(true,"Stop recording"); $("#btnPng").disabled=false;
+  rec.start(250);
+  if(S.kind==="video" && P.vDurMode==="clip"){ S.el.loop=false; S.el.currentTime=0; S.el.play(); S.el.onended=()=>rec.state!=="inactive"&&rec.stop(); setStatus("Recording one pass of the clip in real time…"); }
+  else { if(S.kind==="video") S.el.play(); timer=setTimeout(()=>rec.state!=="inactive"&&rec.stop(), P.vSecs*1000); setStatus(`Recording ${P.vSecs} s in real time…`); }
+}
+$("#btnRec").onclick=()=>exportVideo();
+
+/* ---------------- Boot ---------------- */
+buildPanel();
+setSample();
+applyLook(0);
+syncControls();
+requestAnimationFrame(loop);
+</script>
+
+</body></html>
