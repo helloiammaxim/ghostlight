@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ghostlight</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,6 +103,7 @@ select{width:100%;height:28px;border-radius:5px;border:1px solid var(--line);bac
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head><body>
 
 <div class="app">
   <header class="bar">
@@ -192,7 +193,7 @@ const DEF = {
   gRot:.4, gSpread:1, gLayers:3, gDepth:.6, gSoft:.025, gFocus:.45, wind:.35, flutter:.8, panX:0, panY:0, seed:1, imgContrast:1.2, imgInvert:0,
   light:.9, lightBleed:.45, emberAmt:.8, pool:.5, poolX:.55, poolY:.62, poolSize:.45, poolSoft:.6, spill:.2,
   grain:.5, grainSize:1.5, halation:.45, chroma:.18, vignette:.15, lift:.2, dust:.25, dustOp:.8, leak:.12,
-  imgFormat:"png", imgSize:"source", imgLong:3000, imgQuality:.92, vFormat:"mp4", vSize:"1080", vLong:1920, vQuality:"high", vFps:"30", vDurMode:"clip", vSecs:6,
+  imgFormat:"png", imgSize:"source", imgLong:3000, imgQuality:.92, vFormat:"mp4", vSize:"1k", vLong:1920, vQ:75, vFps:"30", vDurMode:"clip", vSecs:6,
 };
 // Base recipe shared by the shadow looks: pale paper, dark figure, a warm spotlight through leaves that also falls on the wall
 const SAGE={light:.9, polarity:1, wind:.4, pool:.9, poolX:.6, poolY:.64, poolSize:.36, spill:.4, blur:2, detail:.2, halo:.15, density:.92, bleed:.7, mottle:.4, fade:0, ghost:0, lightBleed:.5};
@@ -1268,14 +1269,13 @@ const SECTIONS = [
  {id:"export", title:"Export", open:false, rows:[
    {h:"Image"},
    {k:"imgFormat", l:"Format", type:"seg", opts:[["png","PNG"],["jpg","JPG"],["webp","WebP"]]},
-   {k:"imgSize", l:"Size", type:"select", opts:[["preview","Preview"],["source","Source size"],["1080","1080 px short edge"],["2048","2048 px long edge"],["4096","4096 px long edge"],["custom","Custom long edge"]]},
-   {k:"imgLong", l:"Long edge px", min:256, max:8192, step:16, show:()=>P.imgSize==="custom"},
-   {k:"imgQuality", l:"Quality", min:.5, max:1, step:.01, show:()=>P.imgFormat!=="png"},
+   {k:"imgSize", l:"Size", type:"seg", opts:[["source","Original"],["1k","1K"],["2k","2K"],["4k","4K"]]},
+   {k:"imgQuality", l:"Quality", min:.4, max:1, step:.01, show:()=>P.imgFormat!=="png"},
+   {note:"1K, 2K and 4K set the long edge to 1920, 2560 and 3840 px. PNG is always lossless."},
    {h:"Video"},
    {k:"vFormat", l:"Format", type:"seg", opts:[["mp4","MP4"],["webm","WebM"]]},
-   {k:"vSize", l:"Size", type:"select", opts:[["720","720p"],["1080","1080p"],["preview","Preview"],["source","Source size"],["2160","4K long edge"],["custom","Custom long edge"]]},
-   {k:"vLong", l:"Long edge px", min:256, max:4096, step:16, show:()=>P.vSize==="custom"},
-   {k:"vQuality", l:"Quality", type:"seg", opts:[["low","Low"],["medium","Med"],["high","High"],["max","Max"]]},
+   {k:"vSize", l:"Size", type:"seg", opts:[["source","Original"],["1k","1K"],["2k","2K"],["4k","4K"]]},
+   {k:"vQ", l:"Quality", min:5, max:100, step:1},
    {k:"vFps", l:"Frame rate", type:"seg", opts:[["24","24"],["25","25"],["30","30"],["60","60"]]},
    {k:"vDurMode", l:"Duration", type:"seg", opts:[["clip","Whole clip"],["custom","Set"]], show:()=>S.kind==="video"},
    {k:"vSecs", l:"Seconds", min:1, max:60, step:.5, show:()=>S.kind!=="video"||P.vDurMode==="custom"},
@@ -1400,7 +1400,7 @@ function buildLooks(host){
 }
 
 /* ---------------- Saved looks: private to each viewer (artifact database), browser storage as fallback ---------------- */
-const LOOK_SKIP=["maskMode","personTh","personSoft","keyTol","keySoft","lumaDarker","invertMask","smoothing","imgFormat","imgSize","imgLong","imgQuality","vFormat","vSize","vLong","vQuality","vFps","vDurMode","vSecs"];
+const LOOK_SKIP=["maskMode","personTh","personSoft","keyTol","keySoft","lumaDarker","invertMask","smoothing","imgFormat","imgSize","imgLong","imgQuality","vFormat","vSize","vLong","vQ","vFps","vDurMode","vSecs"];
 let customLooks=[], activeCustom=null, lookStore=null;
 function lsLooks(save){
   try{ if(save) localStorage.setItem("ghostlight.looks",JSON.stringify(customLooks)); else customLooks=JSON.parse(localStorage.getItem("ghostlight.looks")||"[]"); }catch(e){ if(!save) customLooks=[]; }
@@ -1412,6 +1412,8 @@ async function initLookStore(){
       const uid = user ? await user.id() : null;
       if(db && uid){
         lookStore=db.collection("data/users/"+uid+"/looks");
+        palStore=db.collection("data/users/"+uid+"/palettes");
+        palStore.onSnapshot(snap=>{ customPals=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.created||0)-(b.created||0)); renderPalGrid(); },()=>{ palStore=null; lsPals(false); renderPalGrid(); });
         lookStore.onSnapshot(snap=>{
           customLooks=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.created||0)-(b.created||0));
           renderCustom();
@@ -1420,7 +1422,7 @@ async function initLookStore(){
       }
     }
   }catch(e){ lookStore=null; }
-  lsLooks(false); renderCustom();
+  lsLooks(false); renderCustom(); lsPals(false); renderPalGrid();
   $("#lookNote").textContent="Saved looks are kept in this browser.";
 }
 function renderCustom(){
@@ -1507,7 +1509,7 @@ function applyCustom(id){
   const keep={}; for(const k of LOOK_SKIP) keep[k]=P[k];
   P={...DEF,...p,...keep};
   if(P.gobo==="image" && !S.goboAspect){ P.gobo="dapple"; P.flora="dapple"; }
-  if(Array.isArray(L.pal)&&L.pal.length===8){ PAL=L.pal.slice(); palName=L.palName||L.name; }
+  if(Array.isArray(L.pal)&&L.pal.length===8){ PAL=L.pal.slice(); palName=L.palName||L.name; const bi=PALETTES.find(q=>q.name===palName); palSel=bi?{kind:"builtin",key:bi.name}:null; syncPalette(); }
   if(P.gobo==="branch") buildFloraTex();
   activeCustom=id; dirty=true; syncControls(); markLooks();
   $("#lookName").value=""; $("#lookNote").textContent=`“${L.name}” loaded. Adjust anything, then Update or Save as new.`;
@@ -1516,24 +1518,39 @@ function applyLook(i,original){
   const ov=!original && overrideFor(LOOKS[i]?.name);
   if(ov){ applyCustom(ov.id); activeCustom=null; lookIdx=i; markLooks(); $("#lookNote").textContent=`Your version of “${LOOKS[i].name}”. Reset brings back the original.`; return; }
   const L=LOOKS[i]; lookIdx=i; activeCustom=null;
-  const keep={dust:P.dust,dustOp:P.dustOp,sharpen:P.sharpen,clarity:P.clarity,maskMode:P.maskMode,personTh:P.personTh,personSoft:P.personSoft,keyTol:P.keyTol,keySoft:P.keySoft,lumaDarker:P.lumaDarker,invertMask:P.invertMask,imgFormat:P.imgFormat,imgSize:P.imgSize,imgLong:P.imgLong,imgQuality:P.imgQuality,vFormat:P.vFormat,vSize:P.vSize,vLong:P.vLong,vQuality:P.vQuality,vFps:P.vFps,vDurMode:P.vDurMode,vSecs:P.vSecs,seed:P.seed,smoothing:P.smoothing};
+  const keep={dust:P.dust,dustOp:P.dustOp,sharpen:P.sharpen,clarity:P.clarity,maskMode:P.maskMode,personTh:P.personTh,personSoft:P.personSoft,keyTol:P.keyTol,keySoft:P.keySoft,lumaDarker:P.lumaDarker,invertMask:P.invertMask,imgFormat:P.imgFormat,imgSize:P.imgSize,imgLong:P.imgLong,imgQuality:P.imgQuality,vFormat:P.vFormat,vSize:P.vSize,vLong:P.vLong,vQ:P.vQ,vFps:P.vFps,vDurMode:P.vDurMode,vSecs:P.vSecs,seed:P.seed,smoothing:P.smoothing};
   P={...DEF,...keep};
   const fl=FLORA.find(x=>x.id===L.p.flora); if(fl) Object.assign(P,fl.p);
   Object.assign(P,L.p);
   if(fl && fl.kind){ P.floraKind=fl.kind; buildFloraTex(); }
-  PAL=PALETTES[L.pal].c.slice(); palName=PALETTES[L.pal].name;
+  applyPalette(PALETTES[L.pal]);
   dirty=true; syncControls();
+}
+/* ---------------- Palettes: built-in, generated (unsaved) and your saved ones; update, delete, hide, reset ---------------- */
+const userPals=[];               // generated this session, not saved yet
+let customPals=[], palStore=null, palSel=null, palEdited=false;
+function lsPals(save){ try{ if(save) localStorage.setItem("ghostlight.palettes",JSON.stringify(customPals)); else customPals=JSON.parse(localStorage.getItem("ghostlight.palettes")||"[]"); }catch(e){ if(!save) customPals=[]; } }
+function palOverride(name){ return customPals.find(p=>p.of===name); }
+function palEntries(){
+  const out=[];
+  customPals.filter(p=>!p.of).forEach(p=>out.push({kind:"custom",key:p.id,name:p.name,c:p.c}));
+  userPals.forEach((p,i)=>out.push({kind:"session",key:String(i),name:p.name,c:p.c,unsaved:true}));
+  PALETTES.forEach(p=>{ const o=palOverride(p.name); if(o&&o.hidden) return; out.push({kind:"builtin",key:p.name,name:p.name,c:o&&o.c?o.c:p.c,edited:!!(o&&o.c)}); });
+  return out;
 }
 function buildPalette(host){
   const sw=document.createElement("div"); sw.className="swatches";
   PAL_KEYS.forEach((k,i)=>{
     const w=document.createElement("label"); w.className="swatch";
     const inp=document.createElement("input"); inp.type="color"; inp.id="sw_"+k; inp.setAttribute("aria-label",PAL_LABELS[i]);
-    inp.oninput=()=>{ PAL[i]=inp.value; palName="Custom"; dirty=true; markPal(); };
+    inp.oninput=()=>{ PAL[i]=inp.value; palEdited=true; dirty=true; markPal(); };
     const s=document.createElement("span"); s.textContent=PAL_LABELS[i];
     w.append(inp,s); sw.appendChild(w);
   });
   host.appendChild(sw);
+  const row=document.createElement("div"); row.className="mood";
+  row.innerHTML=`<input id="palName" type="text" placeholder="Name this palette" aria-label="Palette name" maxlength="40"><button class="btn" id="palSave" type="button">Save as new</button><button class="btn" id="palUpdate" type="button" disabled>Update</button>`;
+  host.appendChild(row);
   const h=document.createElement("div"); h.className="sub-h"; h.textContent="Generate from a mood"; host.appendChild(h);
   const mood=document.createElement("div"); mood.className="mood";
   mood.innerHTML=`<input id="moodIn" type="text" placeholder="e.g. late summer grief" aria-label="Mood"><button class="btn" id="moodGo" type="button">Generate</button><button class="btn" id="moodShuffle" type="button" title="Random harmonious palette">Shuffle</button>`;
@@ -1541,31 +1558,115 @@ function buildPalette(host){
   const note=document.createElement("div"); note.className="note"; note.id="moodNote"; host.appendChild(note);
   const h2=document.createElement("div"); h2.className="sub-h"; h2.textContent="Palettes"; host.appendChild(h2);
   const grid=document.createElement("div"); grid.className="palettes"; grid.id="palGrid"; host.appendChild(grid);
+  const tools=document.createElement("div"); tools.style.cssText="display:flex;flex-wrap:wrap;gap:6px";
+  tools.innerHTML=`<button class="btn" id="palReset" type="button" hidden>Reset to original</button><button class="btn" id="palUnhide" type="button" hidden>Show hidden</button>`;
+  host.appendChild(tools);
+  const pn=document.createElement("div"); pn.className="note"; pn.id="palNote"; host.appendChild(pn);
   setTimeout(()=>{
     renderPalGrid();
+    $("#palSave").onclick=()=>savePalette(false);
+    $("#palUpdate").onclick=()=>savePalette(true);
+    $("#palName").addEventListener("keydown",e=>{ if(e.key==="Enter") savePalette(false); });
+    $("#palReset").onclick=resetPalette;
+    $("#palUnhide").onclick=unhidePalettes;
     $("#moodGo").onclick=generateMood;
     $("#moodIn").addEventListener("keydown",e=>{ if(e.key==="Enter") generateMood(); });
     $("#moodShuffle").onclick=()=>{ const t=$("#moodIn").value.trim(); applyPalette(localPalette(t||String(Date.now()), shuffleN++)); $("#moodNote").textContent = t ? "Variation from the built-in generator." : "Random palette from the built-in generator."; };
   });
 }
-const userPals=[];
 function renderPalGrid(){
   const grid=$("#palGrid"); if(!grid) return; grid.innerHTML="";
-  [...userPals, ...PALETTES].forEach(p=>{
-    const b=document.createElement("button"); b.type="button"; b.className="pal"; b.dataset.pal=p.name;
-    b.innerHTML=`<span class="strip">${p.c.map(c=>`<i style="background:${c}"></i>`).join("")}</span><span>${esc(p.name)}</span>`;
-    b.onclick=()=>applyPalette(p,true);
-    grid.appendChild(b);
+  palEntries().forEach(e=>{
+    const w=document.createElement("div"); w.style.position="relative";
+    const b=document.createElement("button"); b.type="button"; b.className="pal"; b.dataset.pk=e.kind+":"+e.key; b.style.width="100%";
+    b.innerHTML=`<span class="strip">${e.c.map(c=>`<i style="background:${c}"></i>`).join("")}</span><span>${esc(e.name)}${e.unsaved?" · unsaved":""}${e.edited?" · yours":""}</span>`;
+    b.onclick=()=>selectPalette(e);
+    const x=document.createElement("button"); x.type="button"; x.className="lookdel"; x.textContent="×";
+    x.title=e.kind==="builtin"?"Hide palette":"Delete palette"; x.setAttribute("aria-label",x.title+" "+e.name);
+    x.onclick=ev=>{ ev.stopPropagation(); deletePalette(e); };
+    w.append(b,x); grid.appendChild(w);
   });
+  const hid=customPals.filter(p=>p.of&&p.hidden).length, un=$("#palUnhide");
+  if(un){ un.hidden=!hid; un.textContent=`Show hidden (${hid})`; }
   markPal();
 }
+function selectPalette(e){
+  PAL=e.c.slice(); palName=e.name; palSel={kind:e.kind,key:e.key}; palEdited=false;
+  dirty=true; syncPalette();
+}
 function applyPalette(p, fromGrid){
-  PAL=p.c.slice(); palName=p.name;
-  if(!fromGrid && !PALETTES.includes(p) && !userPals.includes(p)){ userPals.unshift(p); if(userPals.length>6) userPals.pop(); renderPalGrid(); }
+  // used by looks and the mood generator
+  PAL=p.c.slice(); palName=p.name; palEdited=false;
+  const bi=PALETTES.find(q=>q.name===p.name);
+  if(bi){ palSel={kind:"builtin",key:bi.name}; const o=palOverride(bi.name); if(o&&o.c&&!fromGrid) PAL=o.c.slice(); }
+  else if(!fromGrid){ userPals.unshift(p); if(userPals.length>6) userPals.pop(); palSel={kind:"session",key:"0"}; renderPalGrid(); }
   dirty=true; syncPalette();
 }
 function syncPalette(){ PAL_KEYS.forEach((k,i)=>{ const el=$("#sw_"+k); if(el) el.value=PAL[i]; }); markPal(); }
-function markPal(){ document.querySelectorAll(".pal").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.pal===palName))); }
+function markPal(){
+  const key=palSel?palSel.kind+":"+palSel.key:"";
+  document.querySelectorAll(".pal").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.pk===key)));
+  const up=$("#palUpdate");
+  if(up){
+    const ok=palSel && palSel.kind!=="session";
+    const nm=ok ? (palSel.kind==="custom" ? (customPals.find(p=>p.id===palSel.key)||{}).name : palSel.key) : "";
+    up.disabled=!ok; up.textContent=ok?`Update “${String(nm||"").slice(0,14)}”`:"Update";
+  }
+  const rs=$("#palReset"); if(rs) rs.hidden=!(palSel&&palSel.kind==="builtin"&&palOverride(palSel.key)&&palOverride(palSel.key).c);
+}
+async function palWrite(doc, data){
+  // doc: existing record or null; returns after storage is updated
+  if(palStore){
+    if(doc){ await palStore.doc(doc.id).set(data); } else { const ref=await palStore.add(data); return ref.id; }
+  } else {
+    if(doc) Object.assign(doc,data); else { const id="p"+Date.now().toString(36)+Math.floor(Math.random()*1e4); customPals.push({id,...data}); lsPals(true); renderPalGrid(); return id; }
+    lsPals(true); renderPalGrid();
+  }
+  return doc&&doc.id;
+}
+async function palRemove(doc){ if(palStore) await palStore.doc(doc.id).delete(); else { customPals=customPals.filter(p=>p!==doc); lsPals(true); renderPalGrid(); } }
+async function savePalette(update){
+  const note=$("#palNote"), inp=$("#palName");
+  try{
+    if(update){
+      if(!palSel||palSel.kind==="session") return;
+      if(palSel.kind==="custom"){ const d=customPals.find(p=>p.id===palSel.key); if(!d) return; await palWrite(d,{name:(inp.value.trim()||d.name),c:PAL.slice(),created:d.created||Date.now()}); note.textContent=`Updated “${inp.value.trim()||d.name}”.`; }
+      else { const o=palOverride(palSel.key); await palWrite(o||null,{name:palSel.key,of:palSel.key,c:PAL.slice(),created:Date.now()}); note.textContent=`Updated “${palSel.key}”. Reset brings back the original colors.`; }
+    } else {
+      const name=inp.value.trim()||(palName&&!palSel?.kind?.startsWith("custom")?palName+" variant":"My palette");
+      const id=await palWrite(null,{name,c:PAL.slice(),created:Date.now()});
+      if(palSel&&palSel.kind==="session"){ userPals.splice(+palSel.key,1); }
+      palSel={kind:"custom",key:id}; palName=name; note.textContent=`Saved “${name}”.`; renderPalGrid();
+    }
+    inp.value=""; palEdited=false; markPal();
+  }catch(e){ note.textContent="The palette could not be saved. Try again in a moment."; }
+}
+async function deletePalette(e){
+  const note=$("#palNote"), tag=e.kind+":"+e.key;
+  if(note.dataset.confirm!==tag){ note.dataset.confirm=tag; note.textContent=e.kind==="builtin"?`Press × again to hide “${e.name}”.`:`Press × again to delete “${e.name}”.`; setTimeout(()=>{ if(note.dataset.confirm===tag){ note.dataset.confirm=""; note.textContent=""; } },4000); return; }
+  note.dataset.confirm="";
+  try{
+    if(e.kind==="session"){ userPals.splice(+e.key,1); renderPalGrid(); }
+    else if(e.kind==="custom"){ const d=customPals.find(p=>p.id===e.key); if(d) await palRemove(d); }
+    else { const o=palOverride(e.name); await palWrite(o||null,{...(o||{}),name:e.name,of:e.name,hidden:true,created:(o&&o.created)||Date.now()}); }
+    if(palSel&&palSel.kind===e.kind&&palSel.key===e.key) palSel=null;
+    note.textContent=e.kind==="builtin"?`Hid “${e.name}”.`:`Deleted “${e.name}”.`; markPal();
+  }catch(err){ note.textContent="That did not work. Try again in a moment."; }
+}
+async function resetPalette(){
+  if(!palSel||palSel.kind!=="builtin") return; const o=palOverride(palSel.key); if(!o) return;
+  try{
+    if(o.hidden){ const {c,...rest}=o; await palWrite(o,{...rest}); } else await palRemove(o);
+    const bi=PALETTES.find(p=>p.name===palSel.key); PAL=bi.c.slice(); dirty=true; syncPalette(); renderPalGrid();
+    $("#palNote").textContent=`“${bi.name}” is back to its original colors.`;
+  }catch(e){ $("#palNote").textContent="Could not reset. Try again in a moment."; }
+}
+async function unhidePalettes(){
+  try{
+    for(const o of customPals.filter(p=>p.of&&p.hidden)){ if(o.c){ const {hidden,...rest}=o; await palWrite(o,{...rest,hidden:false}); } else await palRemove(o); }
+    renderPalGrid(); $("#palNote").textContent="Hidden palettes are back.";
+  }catch(e){ $("#palNote").textContent="Could not restore. Try again in a moment."; }
+}
 function buildFlora(host){
   const chips=document.createElement("div"); chips.className="chips";
   for(const f of FLORA){ const b=document.createElement("button"); b.type="button"; b.className="chip"; b.dataset.flora=f.id; b.textContent=f.name; b.onclick=()=>applyFlora(f.id); chips.appendChild(b); }
@@ -1665,8 +1766,10 @@ function exportDims(sizeKey, customLong, even){
   const fit=L=>{ const k=L/Math.max(S.w,S.h); W=Math.round(S.w*k); H=Math.round(S.h*k); };
   if(sizeKey==="source"){ W=S.w; H=S.h; }
   else if(sizeKey==="custom") fit(customLong);
-  else if(sizeKey==="720"||sizeKey==="1080"){ const sh=+sizeKey, k=sh/Math.min(S.w,S.h); W=Math.round(S.w*k); H=Math.round(S.h*k); }
-  else if(sizeKey!=="preview") fit(+sizeKey);
+  else if(sizeKey==="1k") fit(1920);
+  else if(sizeKey==="2k") fit(2560);
+  else if(sizeKey==="4k") fit(3840);
+  else if(sizeKey!=="preview") fit(+sizeKey||1920);
   const cap=Math.min(MAXTEX,8192), k=Math.min(1,cap/Math.max(W,H)); W=Math.round(W*k); H=Math.round(H*k);
   if(even){ W-=W%2; H-=H%2; }
   return [Math.max(2,W),Math.max(2,H)];
@@ -1692,7 +1795,8 @@ $("#btnPng").onclick=async()=>{
 function seekTo(v,t){ return new Promise(res=>{ let done=false; const fin=()=>{ if(done) return; done=true; v.removeEventListener("seeked",fin); res(); }; v.addEventListener("seeked",fin); setTimeout(fin,1500); v.currentTime=Math.min(Math.max(0,t),Math.max(0,(v.duration||0)-.001)); }); }
 const waitFor=(fn,ms)=>new Promise(res=>{ const t0=performance.now(); const tick=()=>{ if(fn()||performance.now()-t0>ms) res(); else setTimeout(tick,4); }; tick(); });
 let exporting=false, cancelExport=false;
-const VQ={low:4,medium:10,high:20,max:40};
+// Quality 5–100 maps to roughly 3–60 Mbps at 1080p, scaled by pixel count
+function vBitrate(W,H){ const q=Math.max(5,Math.min(100,+P.vQ||75))/100; return Math.round((3+57*q*q)*1e6*Math.max(.3,(W*H)/(1920*1080))); }
 async function pickCodec(fmt,W,H,fps,bitrate){
   const list = fmt==="mp4" ? ["avc1.640034","avc1.640033","avc1.4d0034","avc1.42003e","avc1.42001f"] : ["vp09.00.40.08","vp09.00.10.08","vp8"];
   for(const codec of list){
@@ -1711,7 +1815,7 @@ async function exportVideo(){
   if(!("VideoEncoder" in window) || !("VideoFrame" in window)) return legacyRecord();
   const fmt=P.vFormat, fps=+P.vFps;
   const [W,H]=exportDims(P.vSize,P.vLong,true);
-  const bitrate=Math.round((VQ[P.vQuality]||10)*1e6*Math.max(.35,(W*H)/(1920*1080)));
+  const bitrate=vBitrate(W,H);
   const cfg=await pickCodec(fmt,W,H,fps,bitrate);
   if(!cfg){
     if(window.MediaRecorder && MediaRecorder.isTypeSupported(fmt==="mp4"?"video/mp4":"video/webm")){ setStatus(`Offline ${fmt.toUpperCase()} encoding is not available in this browser, so it records in real time instead.`); return legacyRecord(); }
@@ -1773,7 +1877,7 @@ function legacyRecord(){
   const want=P.vFormat==="mp4"?["video/mp4;codecs=avc1.640028","video/mp4"]:["video/webm;codecs=vp9","video/webm"];
   const mime=want.find(t=>MediaRecorder.isTypeSupported(t))||["video/webm","video/mp4"].find(t=>MediaRecorder.isTypeSupported(t))||"";
   const stream=cv.captureStream(+P.vFps), chunks=[];
-  rec=new MediaRecorder(stream,{mimeType:mime||undefined, videoBitsPerSecond:(VQ[P.vQuality]||10)*1e6});
+  rec=new MediaRecorder(stream,{mimeType:mime||undefined, videoBitsPerSecond:vBitrate(cv.width,cv.height)});
   rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
   let timer=null;
   const finish=()=>{ recording=false; setExportUi(false); clearTimeout(timer); if(S.kind==="video"){ S.el.loop=true; S.el.onended=null; S.el.play(); } };
@@ -1792,5 +1896,4 @@ applyLook(0);
 syncControls();
 requestAnimationFrame(loop);
 </script>
-
 </body></html>
