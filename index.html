@@ -119,7 +119,7 @@ select{width:100%;height:28px;border-radius:5px;border:1px solid var(--line);bac
     <section class="stage" id="stage">
       <div class="canvasWrap" id="wrap"><canvas id="gl" width="960" height="1200"></canvas><div class="drop" id="drop" hidden>Drop a photo or video</div></div>
       <div class="stagebar">
-        <div class="status" id="status">Sample bust loaded. Open your own photo or video, or drop it on the stage.</div>
+        <div class="status" id="status">Loading the sample portrait…</div>
         <div class="seg" role="group" aria-label="View">
           <button type="button" id="vRes" aria-pressed="true">Result</button>
           <button type="button" id="vMask" aria-pressed="false">Mask</button>
@@ -712,11 +712,22 @@ function fitCss(){
 new ResizeObserver(()=>fitCss()).observe(document.getElementById("wrap"));
 
 function setSample(){
-  const s=drawSample();
-  S.kind="sample"; S.el=s.img; S.w=1200; S.h=1500; S.sampleMask=s.mask;
-  upload(T.src,s.img,true); upload(T.seg,s.mask,false); S.segA=0;
-  S.key=[.85,.83,.78];
-  fitCanvas(); updatePlayBtn();
+  // Start image: a portrait with a precomputed hair matte, shipped next to the page. Falls back to a drawn bust.
+  const img=new Image(), msk=new Image();
+  img.src="sample.jpg"; msk.src="sample-mask.png";
+  Promise.all([img.decode(),msk.decode()]).then(()=>{
+    if(S.kind!=="sample" && S.el) return;
+    S.kind="sample"; S.el=img; S.w=img.naturalWidth; S.h=img.naturalHeight;
+    upload(T.src,img,true); upload(T.seg,msk,false); S.segA=0; S.key=[.1,.1,.1];
+    S.newMask=true; fitCanvas(); updatePlayBtn();
+    setStatus("Sample portrait loaded. Open your own photo or video, or drop it on the stage.");
+  }).catch(()=>{
+    if(S.el) return;
+    const s=drawSample();
+    S.kind="sample"; S.el=s.img; S.w=1200; S.h=1500;
+    upload(T.src,s.img,true); upload(T.seg,s.mask,false); S.segA=0; S.key=[.85,.83,.78];
+    S.newMask=true; fitCanvas(); updatePlayBtn();
+  });
 }
 
 async function loadSource(file){
@@ -826,7 +837,7 @@ function ensureMask(){
   else dirty=true;
 }
 
-function statusBase(){ return S.kind==="sample" ? "Sample bust" : `${S.kind==="video"?"Video":"Photo"} ${S.w}×${S.h}`; }
+function statusBase(){ return S.kind==="sample" ? "Sample portrait" : `${S.kind==="video"?"Video":"Photo"} ${S.w}×${S.h}`; }
 
 /* ---------------- Render ---------------- */
 function render(W,H){
@@ -1382,9 +1393,10 @@ function buildLooks(host){
   const cg=document.createElement("div"); cg.className="looks"; cg.id="customLooks"; host.appendChild(cg);
   const row=document.createElement("div"); row.className="mood";
   row.innerHTML=`<input id="lookName" type="text" placeholder="Name this look" aria-label="Look name" maxlength="40"><button class="btn" id="lookSave" type="button">Save as new</button><button class="btn" id="lookUpdate" type="button" disabled>Update</button>`;
-  host.appendChild(row);
+  const rs=document.createElement("button"); rs.type="button"; rs.className="btn"; rs.id="lookReset"; rs.hidden=true; rs.textContent="Reset to original"; rs.style.justifySelf="start";
+  host.appendChild(row); host.appendChild(rs);
   const note=document.createElement("div"); note.className="note"; note.id="lookNote"; host.appendChild(note);
-  setTimeout(()=>{ $("#lookSave").onclick=()=>saveLook(false); $("#lookUpdate").onclick=()=>saveLook(true); $("#lookName").addEventListener("keydown",e=>{ if(e.key==="Enter") saveLook(false); }); initLookStore(); });
+  setTimeout(()=>{ $("#lookSave").onclick=()=>saveLook(false); $("#lookUpdate").onclick=()=>saveLook(true); $("#lookReset").onclick=resetLook; $("#lookName").addEventListener("keydown",e=>{ if(e.key==="Enter") saveLook(false); }); initLookStore(); });
 }
 
 /* ---------------- Saved looks: private to each viewer (artifact database), browser storage as fallback ---------------- */
@@ -1413,8 +1425,8 @@ async function initLookStore(){
 }
 function renderCustom(){
   const g=$("#customLooks"); if(!g) return; g.innerHTML="";
-  if(!customLooks.length){ const e=document.createElement("div"); e.className="note"; e.style.gridColumn="1/-1"; e.textContent="Tune any look, name it below and save it. Your looks appear here."; g.appendChild(e); }
-  customLooks.forEach(L=>{
+  if(!customLooks.filter(L=>!L.of).length){ const e=document.createElement("div"); e.className="note"; e.style.gridColumn="1/-1"; e.textContent="Tune any look, name it below and save it. Your looks appear here."; g.appendChild(e); }
+  customLooks.filter(L=>!L.of).forEach(L=>{
     const w=document.createElement("div"); w.style.position="relative";
     const b=document.createElement("button"); b.type="button"; b.className="look"; b.dataset.custom=L.id; b.style.width="100%";
     b.innerHTML=`<span class="sw" style="${lookSwatch(L.pal||PAL)}"></span><span class="n">${esc(L.name)}</span>`;
@@ -1428,15 +1440,30 @@ function renderCustom(){
 function markLooks(){
   document.querySelectorAll("[data-look]").forEach(b=>b.setAttribute("aria-pressed",String(activeCustom==null && +b.dataset.look===lookIdx)));
   document.querySelectorAll("[data-custom]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.custom===activeCustom)));
-  const up=$("#lookUpdate"); if(up){ const L=customLooks.find(l=>l.id===activeCustom); up.disabled=!L; up.textContent=L?`Update “${L.name.slice(0,14)}”`:"Update"; }
+  const up=$("#lookUpdate"); if(up){ const L=customLooks.find(l=>l.id===activeCustom); const B=LOOKS[lookIdx];
+    up.disabled=!(L||B); up.textContent=L?`Update “${L.name.slice(0,14)}”`:B?`Update “${B.name.slice(0,14)}”`:"Update"; }
+  const rs=$("#lookReset"); if(rs){ rs.hidden=!(activeCustom==null && overrideFor(LOOKS[lookIdx]?.name)); }
 }
 function snapshotLook(name){
   const p={}; for(const k in P) if(!LOOK_SKIP.includes(k)) p[k]=P[k];
   return {name, p:JSON.stringify(p), pal:PAL.slice(), palName, created:Date.now()};
 }
+function overrideFor(name){ return name ? customLooks.find(l=>l.of===name) : null; }
 async function saveLook(update){
   const note=$("#lookNote"), inp=$("#lookName");
-  const cur=customLooks.find(l=>l.id===activeCustom);
+  let cur=customLooks.find(l=>l.id===activeCustom);
+  if(update && !cur){
+    // updating a built-in look: save (or overwrite) your version of it
+    const B=LOOKS[lookIdx]; if(!B) return;
+    const data={...snapshotLook(B.name), of:B.name};
+    const ov=overrideFor(B.name);
+    try{
+      if(lookStore){ if(ov) await lookStore.doc(ov.id).set(data); else await lookStore.add(data); }
+      else { if(ov) Object.assign(ov,data); else customLooks.push({id:"o"+Date.now().toString(36),...data}); lsLooks(true); renderCustom(); }
+      note.textContent=`Updated “${B.name}”. Reset brings back the original.`; markLooks();
+    }catch(e){ note.textContent="The look could not be saved. Try again in a moment."; }
+    return;
+  }
   let name=(inp.value||"").trim();
   if(update){ if(!cur) return; name=name||cur.name; }
   else if(!name){ name=(activeCustom&&cur? cur.name : LOOKS[lookIdx]?.name||"Look")+" variant"; }
@@ -1466,6 +1493,14 @@ async function deleteLook(id){
     note.textContent=`Deleted “${L.name}”.`; markLooks();
   }catch(e){ note.textContent="The look could not be deleted. Try again in a moment."; }
 }
+async function resetLook(){
+  const B=LOOKS[lookIdx], ov=overrideFor(B?.name); if(!ov) return;
+  try{
+    if(lookStore) await lookStore.doc(ov.id).delete();
+    else { customLooks=customLooks.filter(l=>l!==ov); lsLooks(true); renderCustom(); }
+    applyLook(lookIdx,true); $("#lookNote").textContent=`“${B.name}” is back to the original.`;
+  }catch(e){ $("#lookNote").textContent="Could not reset. Try again in a moment."; }
+}
 function applyCustom(id){
   const L=customLooks.find(l=>l.id===id); if(!L) return;
   let p={}; try{ p=JSON.parse(L.p||"{}"); }catch(e){}
@@ -1477,7 +1512,9 @@ function applyCustom(id){
   activeCustom=id; dirty=true; syncControls(); markLooks();
   $("#lookName").value=""; $("#lookNote").textContent=`“${L.name}” loaded. Adjust anything, then Update or Save as new.`;
 }
-function applyLook(i){
+function applyLook(i,original){
+  const ov=!original && overrideFor(LOOKS[i]?.name);
+  if(ov){ applyCustom(ov.id); activeCustom=null; lookIdx=i; markLooks(); $("#lookNote").textContent=`Your version of “${LOOKS[i].name}”. Reset brings back the original.`; return; }
   const L=LOOKS[i]; lookIdx=i; activeCustom=null;
   const keep={dust:P.dust,dustOp:P.dustOp,sharpen:P.sharpen,clarity:P.clarity,maskMode:P.maskMode,personTh:P.personTh,personSoft:P.personSoft,keyTol:P.keyTol,keySoft:P.keySoft,lumaDarker:P.lumaDarker,invertMask:P.invertMask,imgFormat:P.imgFormat,imgSize:P.imgSize,imgLong:P.imgLong,imgQuality:P.imgQuality,vFormat:P.vFormat,vSize:P.vSize,vLong:P.vLong,vQuality:P.vQuality,vFps:P.vFps,vDurMode:P.vDurMode,vSecs:P.vSecs,seed:P.seed,smoothing:P.smoothing};
   P={...DEF,...keep};
@@ -1616,6 +1653,7 @@ async function offerFile(blob, name, kind){
     catch(e){ if(e && e.code==="declined"){ setStatus("Save cancelled."); return; } }
   }
   const url=URL.createObjectURL(blob);
+  if(!window.claude){ const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000); setStatus(`Saved <b>${esc(name)}</b>.`); return; }
   const m=document.createElement("div"); m.className="modal";
   m.innerHTML=`<div class="box"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><b>${esc(name)}</b><button class="btn" type="button">Close</button></div>${kind==="video"?`<video src="${url}" controls loop autoplay muted playsinline></video>`:`<img src="${url}" alt="Exported image">`}<div class="note">Saving is not available in this view. Right-click the ${kind} and choose Save ${kind==="video"?"video":"image"} as.</div></div>`;
   m.querySelector("button").onclick=()=>{ m.remove(); URL.revokeObjectURL(url); };
